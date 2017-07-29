@@ -1,5 +1,8 @@
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 
@@ -7,21 +10,44 @@ import scala.concurrent.Future
 
 object Main {
   def main(args: Array[String]): Unit = {
-    implicit val system = ActorSystem("Sys")
+    implicit val system = ActorSystem()
     implicit val materializer = ActorMaterializer()
+    import system.dispatcher
 
-    val numberSource: Source[Int, NotUsed] = Source(1 to 1000)
+    // print each incoming strict text message
+    val printSink: Sink[Message, Future[Done]] =
+      Sink.foreach {
+        case message: TextMessage.Strict =>
+          println(message.text)
+      }
 
-    //Only let pass even numbers through the Flow
-    val isEvenFlow: Flow[Int, Int, NotUsed] = Flow[Int].filter((num) => num % 2 == 0)
+    val helloSource: Source[Message, NotUsed] =
+      Source.single(TextMessage("hello world!"))
 
-    //Create a Source of even random numbers by combining the random number Source with the even number filter Flow
-    val evenNumbersSource: Source[Int, NotUsed] = numberSource.via(isEvenFlow)
+    // the Future[Done] is the materialized value of Sink.foreach
+    // and it is completed when the stream completes
+    val flow: Flow[Message, Message, Future[Done]] =
+    Flow.fromSinkAndSourceMat(printSink, helloSource)(Keep.left)
 
-    //A Sink that will write its input onto the console
-    val consoleSink: Sink[Int, Future[Done]] = Sink.foreach[Int](println)
+    // upgradeResponse is a Future[WebSocketUpgradeResponse] that
+    // completes or fails when the connection succeeds or fails
+    // and closed is a Future[Done] representing the stream completion from above
+    val (upgradeResponse, closed) =
+    Http().singleWebSocketRequest(WebSocketRequest("ws://echo.websocket.org"), flow)
 
-    //Connect the Source with the Sink and run it using the materializer
-    evenNumbersSource.runWith(consoleSink)
+    val connected = upgradeResponse.map { upgrade =>
+      // just like a regular http request we can access response status which is available via upgrade.response.status
+      // status code 101 (Switching Protocols) indicates that server support WebSockets
+      if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
+        Done
+      } else {
+        throw new RuntimeException(s"Connection failed: ${upgrade.response.status}")
+      }
+    }
+
+    // in a real application you would not side effect here
+    // and handle errors more carefully
+    connected.onComplete(println)
+    closed.foreach(_ => println("closed"))
   }
 }
