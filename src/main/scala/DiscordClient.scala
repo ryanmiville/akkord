@@ -18,11 +18,11 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
   private implicit val system = context.system
   private var incr = 0
 
-  val ((queue, killswitch), _) =
+  val (queue, killswitch) =
     Source.queue[Message](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("ws://echo.websocket.org")))
       .viaMat(KillSwitches.single)(Keep.both)
-      .toMat(Sink.actorRefWithAck(self, Init, Ack, Complete))(Keep.both)
+      .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
   override def receive = {
