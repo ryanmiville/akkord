@@ -8,7 +8,7 @@ object Main {
     implicit val materializer = ActorMaterializer()
     implicit val executionContext = system.dispatcher
     val actorRef = system.actorOf(Props(classOf[DiscordClient], materializer))
-    system.scheduler.scheduleOnce(5 seconds) {
+    system.scheduler.scheduleOnce(40 seconds) {
       actorRef ! DiscordClient.Disconnect
       system.terminate()
     }
