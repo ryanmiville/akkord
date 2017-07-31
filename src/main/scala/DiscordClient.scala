@@ -22,6 +22,7 @@ object DiscordClient {
   private case class Reconnect(text: String) extends DiscordMessage
   private case class UnsupportedMessage(text: String) extends DiscordMessage
   private case object HeartBeat
+  private case object HeartBeatAck extends DiscordMessage
   case object Disconnect
 
   val identify = """{
@@ -63,11 +64,9 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
     Source.queue[Message](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
       .viaMat(KillSwitches.single)(Keep.both)
-      .map {
+      .collect {
         case TextMessage.Strict(text) =>
           toDiscordMessage(text)
-        case _ =>
-          UnsupportedMessage
       }
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
@@ -83,7 +82,7 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       case 7 => Reconnect(text)
       case 9 => ToDo(text)
       case 10 => Hello(json)
-      case 11 => ToDo(text)
+      case 11 => HeartBeatAck
       case _ => UnsupportedMessage(text)
     }
   }
@@ -124,6 +123,9 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       println("sending heartbeat")
       queue.offer(TextMessage(heartbeatMessage))
       system.scheduler.scheduleOnce(heartbeatInterval millis, self, HeartBeat)
+    case HeartBeatAck =>
+      println("received Heartbeat Ack")
+      sender ! Ack
     case Event(json) =>
       println(s"received event message: $json")
       val t = json.hcursor.get[String]("t").toOption
