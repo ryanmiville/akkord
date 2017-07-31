@@ -9,10 +9,13 @@ import io.circe.Json
 import io.circe.parser._
 
 object DiscordClient {
+  private trait DiscordMessage
   private case object Init
   private case object Ack
   private case object Complete
-  private case object Hello
+  private case class Hello(text: String) extends DiscordMessage
+  private case class ToDo(text: String) extends DiscordMessage
+  private case class UnsupportedMessage(text: String) extends DiscordMessage
   case object Disconnect
 
   val identify = """{
@@ -50,21 +53,43 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
     Source.queue[Message](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
       .viaMat(KillSwitches.single)(Keep.both)
+      .map {
+        case TextMessage.Strict(text) =>
+          toDiscordMessage(text)
+        case _ =>
+          UnsupportedMessage
+      }
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
+
+  private def toDiscordMessage(text: String): DiscordMessage = {
+    val json = parse(text).getOrElse(Json.Null)
+    val op = json.hcursor.get[Int]("op").toOption
+    op.getOrElse(-1) match {
+      case 0 => ToDo(text)
+      case 3 => ToDo(text)
+      case 7 => ToDo(text)
+      case 9 => ToDo(text)
+      case 10 => Hello(text)
+      case 11 => ToDo(text)
+      case _ => UnsupportedMessage(text)
+    }
+  }
 
   override def receive = {
     case Init =>
       sender ! Ack
-    case TextMessage.Strict(message) =>
-      println(s"received message: [$message]")
-      val json = parse(message).getOrElse(Json.Null)
-      val op = json.hcursor.get[Int]("op").toOption
-      if(op.get == 10) self ! Hello
-      sender ! Ack
-    case Hello =>
+    case Hello(text) =>
+      println(s"received Hello message: $text")
       println("Sending Identify.")
       queue.offer(TextMessage(identify))
+      sender ! Ack
+    case ToDo(text) =>
+      println(s"received message: $text")
+      sender ! Ack
+    case UnsupportedMessage(text) =>
+      println(s"received unsupported message: $text")
+      sender ! Ack
     case Disconnect =>
       println("Stopping")
       killswitch.shutdown()
