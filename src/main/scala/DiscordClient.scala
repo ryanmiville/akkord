@@ -9,11 +9,11 @@ import io.circe.optics.JsonPath.root
 import io.circe.parser.parse
 import scala.concurrent.duration._
 
-class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
+class DiscordClient(token: String) extends Actor {
   private implicit val executionContext = context.system.dispatcher
   private implicit val system = context.system
+  private implicit val materializer = ActorMaterializer()
 
-  val token = "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME"
   var lastSeq: Option[Int] = None
   var sessionId = ""
 
@@ -23,7 +23,7 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       .viaMat(KillSwitches.single)(Keep.both)
       .collect {
         case TextMessage.Strict(text) =>
-          mapToDiscordMessage(text, self)
+          mapToGatewayPayload(text, self)
       }
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
@@ -76,23 +76,23 @@ object DiscordClient {
   private case object Ack
   private case object Complete
 
-  private trait DiscordMessage
-  private case class Hello(heartbeatInterval: Int) extends DiscordMessage
-  private case class Event(json: Json) extends DiscordMessage
-  private case class UnsupportedMessage(text: String) extends DiscordMessage
-  private case class Ready(sessionId: String) extends DiscordMessage
-  private case class MessageCreate(content: String) extends DiscordMessage
-  private case object Reconnect extends DiscordMessage
-  private case object HeartBeatAck extends DiscordMessage
-  private case object StatusUpdate extends DiscordMessage
-  private case object InvalidSession extends DiscordMessage
+  private trait GatewayPayload
+  private case class Hello(heartbeatInterval: Int) extends GatewayPayload
+  private case class Event(json: Json) extends GatewayPayload
+  private case class UnsupportedMessage(text: String) extends GatewayPayload
+  private case class Ready(sessionId: String) extends GatewayPayload
+  private case class MessageCreate(content: String) extends GatewayPayload
+  private case object Reconnect extends GatewayPayload
+  private case object HeartBeatAck extends GatewayPayload
+  private case object StatusUpdate extends GatewayPayload
+  private case object InvalidSession extends GatewayPayload
 
   private case object HeartBeat
   private case class NewSeq(s: Int)
 
   case object Disconnect
 
-  private def mapToDiscordMessage(text: String, ref: ActorRef): DiscordMessage = {
+  private def mapToGatewayPayload(text: String, ref: ActorRef): GatewayPayload = {
     val json = parse(text).getOrElse(Json.Null)
     val op = json.hcursor.get[Int]("op").toOption
     val s = json.hcursor.get[Int]("s").toOption
@@ -116,7 +116,7 @@ object DiscordClient {
     }
   }
 
-  private def mapToEvent(json: Json): DiscordMessage = {
+  private def mapToEvent(json: Json): GatewayPayload = {
     val t = json.hcursor.get[String]("t").toOption
     t.getOrElse("UNDEFINED") match {
       case "READY" =>
