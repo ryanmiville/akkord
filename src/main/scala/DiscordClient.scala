@@ -17,7 +17,9 @@ object DiscordClient {
   private case object Ack
   private case object Complete
   private case class Hello(json: Json) extends DiscordMessage
+  private case class Event(json: Json) extends DiscordMessage
   private case class ToDo(text: String) extends DiscordMessage
+  private case class Reconnect(text: String) extends DiscordMessage
   private case class UnsupportedMessage(text: String) extends DiscordMessage
   private case object HeartBeat
   case object Disconnect
@@ -55,6 +57,8 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
 
   var heartbeatInterval = Int.MaxValue
   var lastSeq: Option[Int] = None
+  var sessionId = ""
+
   val (queue, killswitch) =
     Source.queue[Message](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
@@ -74,9 +78,9 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
     val s = json.hcursor.get[Int]("s").toOption
     s.foreach(newSeq => lastSeq = Some(newSeq))
     op.getOrElse(-1) match {
-      case 0 => ToDo(text)
+      case 0 => Event(json)
       case 3 => ToDo(text)
-      case 7 => ToDo(text)
+      case 7 => Reconnect(text)
       case 9 => ToDo(text)
       case 10 => Hello(json)
       case 11 => ToDo(text)
@@ -91,6 +95,19 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       |    "d": ${lastSeq.orNull}
       |}
     """.stripMargin
+  }
+
+  private def resumeMessage = {
+    s"""
+       |{
+       |    "op": 6,
+       |    "d": {
+       |        "token": "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME",
+       |        "session_id": $sessionId,
+       |        "seq": ${lastSeq.orNull}
+       |    }
+       |}
+     """.stripMargin
   }
   override def receive = {
     case Init =>
@@ -107,6 +124,28 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       println("sending heartbeat")
       queue.offer(TextMessage(heartbeatMessage))
       system.scheduler.scheduleOnce(heartbeatInterval millis, self, HeartBeat)
+    case Event(json) =>
+      println(s"received event message: $json")
+      val t = json.hcursor.get[String]("t").toOption
+      t.foreach { eventName =>
+        eventName match {
+          case "READY" =>
+            val sessionIdPath = root.d.session_id.string
+            sessionId = sessionIdPath.getOption(json).get
+            println(s"session ID: $sessionId")
+          case "MESSAGE_CREATE" =>
+            val contentPath = root.d.content.string
+            val content = contentPath.getOption(json).get
+            if (content.toLowerCase == "!ping") println("PONG!")
+          case _ =>
+        }
+      }
+      sender ! Ack
+    case Reconnect(text) =>
+      println(s"received Reconnect message: $text")
+      println("sending Resume message")
+      queue.offer(TextMessage(resumeMessage))
+      sender ! Ack
     case ToDo(text) =>
       println(s"received message: $text")
       sender ! Ack
