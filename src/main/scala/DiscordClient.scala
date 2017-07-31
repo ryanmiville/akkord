@@ -1,62 +1,19 @@
-
-
 import DiscordClient._
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
 import io.circe.Json
-import io.circe.parser._
-import io.circe.optics.JsonPath._
+import io.circe.optics.JsonPath.root
+import io.circe.parser.parse
 import scala.concurrent.duration._
-
-object DiscordClient {
-  private trait DiscordMessage
-  private case object Init
-  private case object Ack
-  private case object Complete
-  private case class Hello(json: Json) extends DiscordMessage
-  private case class Event(json: Json) extends DiscordMessage
-  private case class ToDo(text: String) extends DiscordMessage
-  private case class Reconnect(text: String) extends DiscordMessage
-  private case class UnsupportedMessage(text: String) extends DiscordMessage
-  private case object HeartBeat
-  private case object HeartBeatAck extends DiscordMessage
-  case object Disconnect
-
-  val identify = """{
-                   |    "op": 2,
-                   |    "d": {
-                   |        "token": "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME",
-                   |        "properties": {
-                   |            "$os": "macos",
-                   |            "$browser": "akkord",
-                   |            "$device": "akkord"
-                   |        },
-                   |        "compress": false,
-                   |        "large_threshold": 50,
-                   |        "shard": [
-                   |            0,
-                   |            1
-                   |        ],
-                   |        "presence": {
-                   |            "game": {
-                   |                "name": "Cards Against Humanity"
-                   |            },
-                   |            "status": "online",
-                   |            "since": 91879201,
-                   |            "afk": false
-                   |        }
-                   |    }
-                   |}""".stripMargin
-}
 
 class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
   private implicit val executionContext = context.system.dispatcher
   private implicit val system = context.system
 
-  var heartbeatInterval = Int.MaxValue
+  val token = "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME"
   var lastSeq: Option[Int] = None
   var sessionId = ""
 
@@ -66,94 +23,45 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       .viaMat(KillSwitches.single)(Keep.both)
       .collect {
         case TextMessage.Strict(text) =>
-          toDiscordMessage(text)
+          mapToDiscordMessage(text, self)
       }
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
-  private def toDiscordMessage(text: String): DiscordMessage = {
-    val json = parse(text).getOrElse(Json.Null)
-    val op = json.hcursor.get[Int]("op").toOption
-    val s = json.hcursor.get[Int]("s").toOption
-    s.foreach(newSeq => lastSeq = Some(newSeq))
-    op.getOrElse(-1) match {
-      case 0 => Event(json)
-      case 3 => ToDo(text)
-      case 7 => Reconnect(text)
-      case 9 => ToDo(text)
-      case 10 => Hello(json)
-      case 11 => HeartBeatAck
-      case _ => UnsupportedMessage(text)
-    }
-  }
-
-  private def heartbeatMessage = {
-    s"""
-      |{
-      |    "op": 1,
-      |    "d": ${lastSeq.orNull}
-      |}
-    """.stripMargin
-  }
-
-  private def resumeMessage = {
-    s"""
-       |{
-       |    "op": 6,
-       |    "d": {
-       |        "token": "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME",
-       |        "session_id": $sessionId,
-       |        "seq": ${lastSeq.orNull}
-       |    }
-       |}
-     """.stripMargin
-  }
   override def receive = {
     case Init =>
       sender ! Ack
-    case Hello(json) =>
-      println(s"received Hello message: $json")
+    case Hello(interval) =>
+      println(s"received Hello message")
       println("Sending Identify.")
-      queue.offer(TextMessage(identify))
-      val heartbeatPath = root.d.heartbeat_interval.int
-      heartbeatInterval = heartbeatPath.getOption(json).get
-      system.scheduler.scheduleOnce(heartbeatInterval millis, self, HeartBeat)
+      queue.offer(identify(token))
+      system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
       sender ! Ack
     case HeartBeat =>
       println("sending heartbeat")
-      queue.offer(TextMessage(heartbeatMessage))
-      system.scheduler.scheduleOnce(heartbeatInterval millis, self, HeartBeat)
+      queue.offer(heartbeat(lastSeq))
     case HeartBeatAck =>
       println("received Heartbeat Ack")
       sender ! Ack
     case Event(json) =>
       println(s"received event message: $json")
-      val t = json.hcursor.get[String]("t").toOption
-      t.foreach { eventName =>
-        eventName match {
-          case "READY" =>
-            val sessionIdPath = root.d.session_id.string
-            sessionId = sessionIdPath.getOption(json).get
-            println(s"session ID: $sessionId")
-          case "MESSAGE_CREATE" =>
-            val contentPath = root.d.content.string
-            val content = contentPath.getOption(json).get
-            if (content.toLowerCase == "!ping") println("PONG!")
-          case _ =>
-        }
-      }
       sender ! Ack
-    case Reconnect(text) =>
-      println(s"received Reconnect message: $text")
+    case Ready(id) =>
+      sessionId = id
+      sender ! Ack
+    case MessageCreate(content) =>
+      if(content == "ping") println("pong")
+      sender ! Ack
+    case Reconnect =>
+      println("received Reconnect message")
       println("sending Resume message")
-      queue.offer(TextMessage(resumeMessage))
-      sender ! Ack
-    case ToDo(text) =>
-      println(s"received message: $text")
+      queue.offer(resume(token, sessionId, lastSeq))
       sender ! Ack
     case UnsupportedMessage(text) =>
       println(s"received unsupported message: $text")
       sender ! Ack
+    case NewSeq(s) =>
+      lastSeq = Some(s)
     case Disconnect =>
       println("Stopping")
       killswitch.shutdown()
@@ -161,4 +69,114 @@ class DiscordClient(implicit materializer: ActorMaterializer) extends Actor {
       println("The stream has terminated")
       context.stop(self)
   }
+}
+
+object DiscordClient {
+  private case object Init
+  private case object Ack
+  private case object Complete
+
+  private trait DiscordMessage
+  private case class Hello(heartbeatInterval: Int) extends DiscordMessage
+  private case class Event(json: Json) extends DiscordMessage
+  private case class UnsupportedMessage(text: String) extends DiscordMessage
+  private case class Ready(sessionId: String) extends DiscordMessage
+  private case class MessageCreate(content: String) extends DiscordMessage
+  private case object Reconnect extends DiscordMessage
+  private case object HeartBeatAck extends DiscordMessage
+  private case object StatusUpdate extends DiscordMessage
+  private case object InvalidSession extends DiscordMessage
+
+  private case object HeartBeat
+  private case class NewSeq(s: Int)
+
+  case object Disconnect
+
+  private def mapToDiscordMessage(text: String, ref: ActorRef): DiscordMessage = {
+    val json = parse(text).getOrElse(Json.Null)
+    val op = json.hcursor.get[Int]("op").toOption
+    val s = json.hcursor.get[Int]("s").toOption
+
+    s.foreach(newSeq => ref ! NewSeq(newSeq))
+
+    def mapToHello = {
+      val heartbeatPath = root.d.heartbeat_interval.int
+      val heartbeatInterval = heartbeatPath.getOption(json).get
+      Hello(heartbeatInterval)
+    }
+
+    op.getOrElse(-1) match {
+      case 0 => mapToEvent(json)
+      case 3 => StatusUpdate
+      case 7 => Reconnect
+      case 9 => InvalidSession
+      case 10 => mapToHello
+      case 11 => HeartBeatAck
+      case _ => UnsupportedMessage(text)
+    }
+  }
+
+  private def mapToEvent(json: Json): DiscordMessage = {
+    val t = json.hcursor.get[String]("t").toOption
+    t.getOrElse("UNDEFINED") match {
+      case "READY" =>
+        val sessionIdPath = root.d.session_id.string
+        val sessionId = sessionIdPath.getOption(json).get
+        Ready(sessionId)
+      case "MESSAGE_CREATE" =>
+        val contentPath = root.d.content.string
+        val content = contentPath.getOption(json).get
+        MessageCreate(content)
+      case _ =>
+        Event(json)
+    }
+  }
+
+  private def identify(token: String) = TextMessage(
+    s"""{
+       |    "op": 2,
+       |    "d": {
+       |        "token": "$token",
+       |        "properties": {
+       |            "$$os": "macos",
+       |            "$$browser": "akkord",
+       |            "$$device": "akkord"
+       |        },
+       |        "compress": false,
+       |        "large_threshold": 50,
+       |        "shard": [
+       |            0,
+       |            1
+       |        ],
+       |        "presence": {
+       |            "game": null,
+       |            "status": "online",
+       |            "since": null,
+       |            "afk": false
+       |        }
+       |    }
+       |}""".stripMargin
+  )
+
+  private def heartbeat(lastSeq: Option[Int]) = TextMessage(
+    s"""
+       |{
+       |    "op": 1,
+       |    "d": ${lastSeq.orNull}
+       |}
+    """.stripMargin
+  )
+
+  private def resume(token: String, sessionId: String, lastSeq: Option[Int]) = TextMessage(
+    s"""
+       |{
+       |    "op": 6,
+       |    "d": {
+       |        "token": "$token",
+       |        "session_id": "$sessionId",
+       |        "seq": ${lastSeq.orNull}
+       |    }
+       |}
+     """.stripMargin
+  )
 }
