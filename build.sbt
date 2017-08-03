@@ -25,3 +25,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser",
   "io.circe" %% "circe-optics"
 ).map(_ % circeVersion)
+
+resolvers += Resolver.bintrayRepo("hseeberger", "maven")
+
+libraryDependencies += "de.heikoseeberger" %% "akka-http-circe" % "1.17.0"

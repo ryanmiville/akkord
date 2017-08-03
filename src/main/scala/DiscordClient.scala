@@ -1,5 +1,5 @@
 import DiscordClient._
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.scaladsl.{Keep, Sink, Source}
@@ -7,6 +7,7 @@ import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
 import io.circe.Json
 import io.circe.optics.JsonPath.root
 import io.circe.parser.parse
+
 import scala.concurrent.duration._
 
 class DiscordClient(token: String) extends Actor {
@@ -14,6 +15,7 @@ class DiscordClient(token: String) extends Actor {
   private implicit val system = context.system
   private implicit val materializer = ActorMaterializer()
 
+  private val messenger = system.actorOf(Props(classOf[Messenger], token))
   var lastSeq: Option[Int] = None
   var sessionId = ""
 
@@ -49,8 +51,11 @@ class DiscordClient(token: String) extends Actor {
     case Ready(id) =>
       sessionId = id
       sender ! Ack
-    case MessageCreate(content) =>
-      if(content == "ping") println("pong")
+    case MessageCreate(channelId, content) =>
+      if(content == "ping") {
+        println("sending pong message")
+        messenger ! Messenger.Message(channelId, "pong")
+      }
       sender ! Ack
     case Reconnect =>
       println("received Reconnect message")
@@ -81,7 +86,7 @@ object DiscordClient {
   private case class Event(json: Json) extends GatewayPayload
   private case class UnsupportedMessage(text: String) extends GatewayPayload
   private case class Ready(sessionId: String) extends GatewayPayload
-  private case class MessageCreate(content: String) extends GatewayPayload
+  private case class MessageCreate(channelId: String, content: String) extends GatewayPayload
   private case object Reconnect extends GatewayPayload
   private case object HeartBeatAck extends GatewayPayload
   private case object StatusUpdate extends GatewayPayload
@@ -126,7 +131,9 @@ object DiscordClient {
       case "MESSAGE_CREATE" =>
         val contentPath = root.d.content.string
         val content = contentPath.getOption(json).get
-        MessageCreate(content)
+        val channelIdPath = root.d.channel_id.string
+        val channelId = channelIdPath.getOption(json).get
+        MessageCreate(channelId, content)
       case _ =>
         Event(json)
     }
