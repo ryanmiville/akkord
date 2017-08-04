@@ -18,7 +18,7 @@ trait DiscordBot extends Actor {
   private implicit val system = context.system
   private implicit val materializer = ActorMaterializer()
 
-  protected val messenger = system.actorOf(Props(classOf[Messenger], token))
+  protected val messenger = system.actorOf(Props(classOf[Messenger], token, materializer))
 
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
@@ -36,16 +36,18 @@ trait DiscordBot extends Actor {
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
-  override def receive = receiveStreamPlumbing orElse receiveGatewayPayload orElse receiveFromDiscord
+  override def receive =
+    receiveFromDiscord orElse
+    receiveStreamPlumbing orElse
+    receiveGatewayPayload orElse
+    { case _ => sender ! Ack }
 
   private def receiveStreamPlumbing: Receive = {
     case Init =>
       sender ! Ack
     case Disconnect =>
-      println("Stopping")
       killswitch.shutdown()
     case Complete =>
-      println("The stream has terminated")
       context.stop(self)
   }
 
@@ -63,16 +65,12 @@ trait DiscordBot extends Actor {
       sender ! Ack
     case Ready(id) =>
       sessionId = id
-      println("READY!")
       sender ! Ack
     case Reconnect =>
       queue.offer(resume(token, sessionId, lastSeq))
       sender ! Ack
-    case UnsupportedMessage(text) =>
-      sender ! Ack
     case NewSeq(s) =>
       lastSeq = Some(s)
-
   }
 
   def receiveFromDiscord: Receive
@@ -89,6 +87,7 @@ object DiscordBot {
   private case class UnsupportedMessage(text: String) extends GatewayPayload
   private case class Ready(sessionId: String) extends GatewayPayload
   case class MessageCreated(channelId: String, content: String*) extends GatewayPayload
+  private case object NonUserMessageCreated extends GatewayPayload
   private case object Reconnect extends GatewayPayload
   private case object HeartBeatAck extends GatewayPayload
   private case object StatusUpdate extends GatewayPayload
@@ -133,9 +132,16 @@ object DiscordBot {
       case "MESSAGE_CREATE" =>
         val contentPath = root.d.content.string
         val content = contentPath.getOption(json).get
+
         val channelIdPath = root.d.channel_id.string
         val channelId = channelIdPath.getOption(json).get
-        MessageCreated(channelId, (content split " "): _*)
+
+        val botPath = root.d.author.bot.boolean
+        val isBot = botPath.getOption(json).getOrElse(false)
+
+        val isWebhook = json.hcursor.get[String]("webhook_id").toOption.isDefined
+        if (isBot || isWebhook) NonUserMessageCreated
+        else MessageCreated(channelId, (content split " "): _*)
       case _ =>
         Event(json)
     }

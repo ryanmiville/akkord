@@ -3,17 +3,16 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
+import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-class Messenger(token: String) extends Actor with FailFastCirceSupport {
+class Messenger(token: String)(implicit mat: ActorMaterializer) extends Actor with FailFastCirceSupport {
 
   import Messenger._
   import io.circe.generic.auto._
 
   implicit protected val executionContext = context.system.dispatcher
-  implicit val materializer = ActorMaterializer(ActorMaterializerSettings(context.system))
-  protected val http = Http(context.system)
+  implicit val system = context.system
   protected val authorization = RawHeader("Authorization", s"Bot $token")
   protected val userAgent = headers.`User-Agent`("DiscordBot (https://github.com/ryanmiville/akkord, 1.0)")
   protected val reqHeaders = List(authorization, userAgent)
@@ -25,9 +24,13 @@ class Messenger(token: String) extends Actor with FailFastCirceSupport {
         .to[RequestEntity]
         .flatMap { requestEntity =>
           val request = HttpRequest(HttpMethods.POST, getUri(channelId), headers = reqHeaders, entity = requestEntity)
-          http.singleRequest(request)
+          println("made request")
+          Http().singleRequest(request)
         }
-        .map(resp => println(resp.status))
+        .map { resp =>
+          println(resp.status)
+          resp.discardEntityBytes()
+        }
   }
 }
 

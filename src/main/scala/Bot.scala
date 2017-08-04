@@ -1,8 +1,7 @@
 import DiscordBot.{Ack, MessageCreated}
 import Messenger.Message
-import akka.actor.Actor
 
-class Bot(val token: String) extends Actor with DiscordBot {
+class Bot(val token: String) extends DiscordBot {
 
   override def receiveFromDiscord = {
     case MessageCreated(id, "ping") =>
