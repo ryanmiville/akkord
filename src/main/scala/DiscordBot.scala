@@ -1,25 +1,32 @@
-import DiscordClient._
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
-import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.http.scaladsl.model.ws.{TextMessage, WebSocketRequest}
 import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import io.circe.Json
 import io.circe.optics.JsonPath.root
 import io.circe.parser.parse
 
 import scala.concurrent.duration._
 
-class DiscordClient(token: String, bot: ActorRef) extends Actor {
+trait DiscordBot extends Actor {
+  import DiscordBot._
+
+  val token: String
+
   private implicit val executionContext = context.system.dispatcher
   private implicit val system = context.system
   private implicit val materializer = ActorMaterializer()
 
-  var lastSeq: Option[Int] = None
-  var sessionId = ""
+  protected val messenger = system.actorOf(Props(classOf[Messenger], token))
 
-  val (queue, killswitch) =
-    Source.queue[Message](Int.MaxValue, OverflowStrategy.dropBuffer)
+  private var lastSeq: Option[Int] = None
+  private var sessionId = ""
+
+  private type WsMessage = akka.http.scaladsl.model.ws.Message
+
+  private val (queue, killswitch) =
+    Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
       .viaMat(KillSwitches.single)(Keep.both)
       .collect {
@@ -29,39 +36,11 @@ class DiscordClient(token: String, bot: ActorRef) extends Actor {
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
-  override def receive = {
+  override def receive = receiveStreamPlumbing orElse receiveGatewayPayload orElse receiveFromDiscord
+
+  private def receiveStreamPlumbing: Receive = {
     case Init =>
       sender ! Ack
-    case Hello(interval) =>
-      println(s"received Hello message")
-      println("Sending Identify.")
-      queue.offer(identify(token))
-      system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
-      sender ! Ack
-    case HeartBeat =>
-      println("sending heartbeat")
-      queue.offer(heartbeat(lastSeq))
-    case HeartBeatAck =>
-      println("received Heartbeat Ack")
-      sender ! Ack
-    case Event(json) =>
-      println(s"received event message: $json")
-      sender ! Ack
-    case Ready(id) =>
-      sessionId = id
-      sender ! Ack
-    case MessageCreate(channelId, content) =>
-      sender ! Ack
-    case Reconnect =>
-      println("received Reconnect message")
-      println("sending Resume message")
-      queue.offer(resume(token, sessionId, lastSeq))
-      sender ! Ack
-    case UnsupportedMessage(text) =>
-      println(s"received unsupported message: $text")
-      sender ! Ack
-    case NewSeq(s) =>
-      lastSeq = Some(s)
     case Disconnect =>
       println("Stopping")
       killswitch.shutdown()
@@ -69,19 +48,47 @@ class DiscordClient(token: String, bot: ActorRef) extends Actor {
       println("The stream has terminated")
       context.stop(self)
   }
+
+  private def receiveGatewayPayload: Receive = {
+    case Hello(interval) =>
+      queue.offer(identify(token))
+      system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
+      sender ! Ack
+    case HeartBeat =>
+      queue.offer(heartbeat(lastSeq))
+    case HeartBeatAck =>
+      sender ! Ack
+    case Event(json) =>
+      println(json)
+      sender ! Ack
+    case Ready(id) =>
+      sessionId = id
+      println("READY!")
+      sender ! Ack
+    case Reconnect =>
+      queue.offer(resume(token, sessionId, lastSeq))
+      sender ! Ack
+    case UnsupportedMessage(text) =>
+      sender ! Ack
+    case NewSeq(s) =>
+      lastSeq = Some(s)
+
+  }
+
+  def receiveFromDiscord: Receive
 }
 
-object DiscordClient {
+object DiscordBot {
   private case object Init
-  private case object Ack
+  case object Ack
   private case object Complete
 
-  private trait GatewayPayload
+  trait GatewayPayload
   private case class Hello(heartbeatInterval: Int) extends GatewayPayload
   private case class Event(json: Json) extends GatewayPayload
   private case class UnsupportedMessage(text: String) extends GatewayPayload
   private case class Ready(sessionId: String) extends GatewayPayload
-  private case class MessageCreate(channelId: String, content: String) extends GatewayPayload
+  case class MessageCreated(channelId: String, content: String*) extends GatewayPayload
   private case object Reconnect extends GatewayPayload
   private case object HeartBeatAck extends GatewayPayload
   private case object StatusUpdate extends GatewayPayload
@@ -128,7 +135,7 @@ object DiscordClient {
         val content = contentPath.getOption(json).get
         val channelIdPath = root.d.channel_id.string
         val channelId = channelIdPath.getOption(json).get
-        MessageCreate(channelId, content)
+        MessageCreated(channelId, (content split " "): _*)
       case _ =>
         Event(json)
     }

@@ -1,3 +1,4 @@
+import DiscordBot.Disconnect
 import akka.actor.{ActorSystem, Props}
 
 import scala.concurrent.duration._
@@ -8,9 +9,8 @@ object Main {
     implicit val system = ActorSystem()
     implicit val executionContext = system.dispatcher
     val botRef = system.actorOf(Props(classOf[Bot], token))
-    val actorRef = system.actorOf(Props(classOf[DiscordClient], token, botRef))
     system.scheduler.scheduleOnce(2 minutes) {
-      actorRef ! DiscordClient.Disconnect
+      botRef ! Disconnect
       system.terminate()
     }
   }
