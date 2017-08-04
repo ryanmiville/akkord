@@ -1,5 +1,5 @@
 import DiscordClient._
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.scaladsl.{Keep, Sink, Source}
@@ -10,12 +10,11 @@ import io.circe.parser.parse
 
 import scala.concurrent.duration._
 
-class DiscordClient(token: String) extends Actor {
+class DiscordClient(token: String, bot: ActorRef) extends Actor {
   private implicit val executionContext = context.system.dispatcher
   private implicit val system = context.system
   private implicit val materializer = ActorMaterializer()
 
-  private val messenger = system.actorOf(Props(classOf[Messenger], token))
   var lastSeq: Option[Int] = None
   var sessionId = ""
 
@@ -52,10 +51,7 @@ class DiscordClient(token: String) extends Actor {
       sessionId = id
       sender ! Ack
     case MessageCreate(channelId, content) =>
-      if(content == "ping") {
-        println("sending pong message")
-        messenger ! Messenger.Message(channelId, "pong")
-      }
+      bot ! Bot.Msg(channelId, (content split " "): _*)
       sender ! Ack
     case Reconnect =>
       println("received Reconnect message")

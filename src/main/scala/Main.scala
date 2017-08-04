@@ -7,7 +7,8 @@ object Main {
     val token = "MzAxNDMwMzcxNTI0OTM1Njky.DF_bEw.KzXWwb7fCunVfheg6SVtWdKg6ME"
     implicit val system = ActorSystem()
     implicit val executionContext = system.dispatcher
-    val actorRef = system.actorOf(Props(classOf[DiscordClient], token))
+    val botRef = system.actorOf(Props(classOf[Bot], token))
+    val actorRef = system.actorOf(Props(classOf[DiscordClient], token, botRef))
     system.scheduler.scheduleOnce(2 minutes) {
       actorRef ! DiscordClient.Disconnect
       system.terminate()
