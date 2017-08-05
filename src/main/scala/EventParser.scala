@@ -1,9 +1,10 @@
 import DiscordBot.{MessageCreated, NonUserMessageCreated, Ready}
-import EventParser.Event
 import akka.actor.Actor
 import io.circe.HCursor
 
 class EventParser extends Actor {
+  import EventParser._
+
   override def receive = {
     case Event("READY", cursor)          => parseReady(cursor)
     case Event("MESSAGE_CREATE", cursor) => parseMessageCreated(cursor)

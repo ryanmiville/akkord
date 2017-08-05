@@ -1,4 +1,3 @@
-import HttpApiActor._
 import akka.actor.Actor
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.{RawHeader, `User-Agent`}
@@ -9,6 +8,8 @@ import akka.stream.ActorMaterializer
 import scala.collection.{immutable, mutable}
 
 abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) extends Actor {
+  import HttpApiActor._
+  
   implicit protected val ec = context.system.dispatcher
   implicit val system       = context.system
 

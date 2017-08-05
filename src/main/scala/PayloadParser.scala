@@ -1,11 +1,11 @@
 import DiscordBot._
-import PayloadParser.Payload
 import akka.actor.{Actor, ActorRef, Props}
 import akka.http.scaladsl.model.ws.TextMessage
 import io.circe.parser.parse
 import io.circe.{HCursor, Json}
 
 class PayloadParser(bot: ActorRef) extends Actor {
+  import PayloadParser._
 
   val eventParser = context.actorOf(Props(classOf[EventParser]))
 
