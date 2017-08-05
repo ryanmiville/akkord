@@ -6,6 +6,8 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import io.circe.Json
 import io.circe.optics.JsonPath.root
 import io.circe.parser.parse
+import akka.pattern.ask
+import akka.util.Timeout
 
 import scala.concurrent.duration._
 
@@ -19,20 +21,17 @@ trait DiscordBot extends Actor {
   private implicit val materializer = ActorMaterializer()
 
   protected val messenger = system.actorOf(Props(classOf[Messenger], token, materializer))
-
+  private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
 
-  private type WsMessage = akka.http.scaladsl.model.ws.Message
-
+  implicit val timeout = Timeout(10 seconds)
   private val (queue, killswitch) =
     Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
       .viaMat(KillSwitches.single)(Keep.both)
-      .collect {
-        case TextMessage.Strict(text) =>
-          mapToGatewayPayload(text, self)
-      }
+      .collect { case tm: TextMessage.Strict => tm }
+      .mapAsync(1)(msg => (payloadParser ? msg).mapTo[GatewayPayload])
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
@@ -82,21 +81,24 @@ object DiscordBot {
   private case object Complete
 
   trait GatewayPayload
-  private case class Hello(heartbeatInterval: Int) extends GatewayPayload
-  private case class Event(json: Json) extends GatewayPayload
-  private case class UnsupportedMessage(text: String) extends GatewayPayload
-  private case class Ready(sessionId: String) extends GatewayPayload
+  case class Hello(heartbeatInterval: Int) extends GatewayPayload
+  case class Event(json: Json) extends GatewayPayload
+  case class UnsupportedMessage(text: String) extends GatewayPayload
+  case class Ready(sessionId: String) extends GatewayPayload
   case class MessageCreated(channelId: String, content: String*) extends GatewayPayload
-  private case object NonUserMessageCreated extends GatewayPayload
-  private case object Reconnect extends GatewayPayload
-  private case object HeartBeatAck extends GatewayPayload
-  private case object StatusUpdate extends GatewayPayload
-  private case object InvalidSession extends GatewayPayload
+  case object NonUserMessageCreated extends GatewayPayload
+  case object Reconnect extends GatewayPayload
+  case object HeartBeatAck extends GatewayPayload
+  case object StatusUpdate extends GatewayPayload
+  case object InvalidSession extends GatewayPayload
 
-  private case object HeartBeat
-  private case class NewSeq(s: Int)
+  case object HeartBeat
+  case class NewSeq(s: Int)
 
   case object Disconnect
+
+  private type WsMessage = akka.http.scaladsl.model.ws.Message
+
 
   private def mapToGatewayPayload(text: String, ref: ActorRef): GatewayPayload = {
     val json = parse(text).getOrElse(Json.Null)
