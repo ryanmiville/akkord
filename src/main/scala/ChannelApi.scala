@@ -12,7 +12,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
 
   import ChannelApi._
 
-  override def callApi = {
+  override def createHttpApiRequest = {
     case Message(channelId, content) =>
       println(s"Messenger received: $channelId, $content")
       val (method, uri) = createMessageEndpoint(channelId)
