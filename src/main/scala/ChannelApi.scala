@@ -6,11 +6,11 @@ import akka.http.scaladsl.model._
 import akka.pattern.pipe
 import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.Encoder
 
 class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApiActor(token) with FailFastCirceSupport {
 
   import ChannelApi._
-  import io.circe.generic.auto._
 
   override def callApi = {
     case Message(channelId, content) =>
@@ -20,7 +20,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
       self ! ChannelRequestBundle(channelId, method, uri, channelEntity)
     case ChannelRequestBundle(channelId, method, uri, channelEntity) =>
       println("channelRequestBundle received")
-      Marshal(channelEntity.asInstanceOf[MessageEntity])
+      Marshal(channelEntity)
         .to[model.MessageEntity]
         .map { reqEntity =>
           println(s"entity: ${reqEntity.toString}")
@@ -34,8 +34,8 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
 object ChannelApi {
   case class Message(channelId: String, content: String)
 
-  private sealed trait ChannelEntity
-  private case class MessageEntity(content: String) extends ChannelEntity
+  sealed trait ChannelEntity
+  case class MessageEntity(content: String) extends ChannelEntity
   private case class ChannelRequestBundle
   (
     channelId: String,
@@ -45,6 +45,15 @@ object ChannelApi {
   )
 
   def props(token:String)(implicit mat: ActorMaterializer) = Props(classOf[ChannelApi], token, mat)
+
+  implicit val encodeChannelEntity: Encoder[ChannelEntity] =
+    (channelEntity: ChannelEntity) => {
+      import io.circe.generic.auto._
+      import io.circe.syntax._
+      channelEntity match {
+        case entity: ChannelApi.MessageEntity => entity.asJson
+      }
+  }
 
   private def createMessageEndpoint(channelId: String): (HttpMethod, String) =
     (HttpMethods.POST, s"$baseUrl/channels/$channelId/messages")
