@@ -1,7 +1,7 @@
 import DiscordBot.{Ack, MessageCreated}
 import Messenger.Message
 
-class Bot(val token: String) extends DiscordBot {
+class Bot(token: String) extends DiscordBot(token) {
 
   override def receiveFromDiscord = {
     case MessageCreated(id, "ping") =>

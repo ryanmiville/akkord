@@ -1,31 +1,28 @@
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{TextMessage, WebSocketRequest}
-import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import io.circe.Json
-import io.circe.optics.JsonPath.root
-import io.circe.parser.parse
 import akka.pattern.ask
+import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
 import akka.util.Timeout
+import io.circe.Json
 
 import scala.concurrent.duration._
 
-trait DiscordBot extends Actor {
+abstract class DiscordBot(token: String) extends Actor {
   import DiscordBot._
-
-  val token: String
 
   private implicit val executionContext = context.system.dispatcher
   private implicit val system = context.system
   private implicit val materializer = ActorMaterializer()
+  implicit val timeout = Timeout(10 seconds)
 
   protected val messenger = system.actorOf(Props(classOf[Messenger], token, materializer))
+
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
   private var lastSeq: Option[Int] = None
-  private var sessionId = ""
 
-  implicit val timeout = Timeout(10 seconds)
+  private var sessionId = ""
   private val (queue, killswitch) =
     Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
@@ -98,56 +95,6 @@ object DiscordBot {
   case object Disconnect
 
   private type WsMessage = akka.http.scaladsl.model.ws.Message
-
-
-  private def mapToGatewayPayload(text: String, ref: ActorRef): GatewayPayload = {
-    val json = parse(text).getOrElse(Json.Null)
-    val op = json.hcursor.get[Int]("op").toOption
-    val s = json.hcursor.get[Int]("s").toOption
-
-    s.foreach(newSeq => ref ! NewSeq(newSeq))
-
-    def mapToHello = {
-      val heartbeatPath = root.d.heartbeat_interval.int
-      val heartbeatInterval = heartbeatPath.getOption(json).get
-      Hello(heartbeatInterval)
-    }
-
-    op.getOrElse(-1) match {
-      case 0 => mapToEvent(json)
-      case 3 => StatusUpdate
-      case 7 => Reconnect
-      case 9 => InvalidSession
-      case 10 => mapToHello
-      case 11 => HeartBeatAck
-      case _ => UnsupportedMessage(text)
-    }
-  }
-
-  private def mapToEvent(json: Json): GatewayPayload = {
-    val t = json.hcursor.get[String]("t").toOption
-    t.getOrElse("UNDEFINED") match {
-      case "READY" =>
-        val sessionIdPath = root.d.session_id.string
-        val sessionId = sessionIdPath.getOption(json).get
-        Ready(sessionId)
-      case "MESSAGE_CREATE" =>
-        val contentPath = root.d.content.string
-        val content = contentPath.getOption(json).get
-
-        val channelIdPath = root.d.channel_id.string
-        val channelId = channelIdPath.getOption(json).get
-
-        val botPath = root.d.author.bot.boolean
-        val isBot = botPath.getOption(json).getOrElse(false)
-
-        val isWebhook = json.hcursor.get[String]("webhook_id").toOption.isDefined
-        if (isBot || isWebhook) NonUserMessageCreated
-        else MessageCreated(channelId, (content split " "): _*)
-      case _ =>
-        Event(json)
-    }
-  }
 
   private def identify(token: String) = TextMessage(
     s"""{
