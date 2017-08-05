@@ -12,7 +12,6 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
   implicit protected val ec = context.system.dispatcher
   implicit val system = context.system
   protected val reqHeaders = requestHeaders(token)
-  protected val baseUrl = "https://discordapp.com/api/v6"
 
   private var rateLimits = mutable.Map[String, RateLimit]()
 
@@ -22,41 +21,58 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
 
   def checkRateLimit: Receive = {
     case Response(endpoint, resp) =>
-      val headers =
-        resp.headers
-        .map(h => h.name() -> h.value())
-        .toMap
-      println(s"headers: $headers")
+      resp.discardEntityBytes()
+      val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
+      val reset = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
       val rateLimit =
         for {
-          remaining <- headers.get(remainingHeader)
-          reset <- headers.get(resetHeader)
-        } yield RateLimit(remaining.toInt, reset.toInt)
-      rateLimit.foreach(r => rateLimits(endpoint) = r)
-    case ChannelRequest(id, req) =>
-      val rateLimit = rateLimits.getOrElse(s"channel/$id", RateLimit(Int.MaxValue, 0))
-      val currentTime = System.currentTimeMillis / 1000
-      if(rateLimit.remaining < 1 && currentTime < rateLimit.reset) {
+          rem <- remaining
+          res <- reset
+        } yield RateLimit(rem, res)
 
-      } else {
-        Http().singleRequest(req)
-          .map(resp => Response(s"channel/$id", resp))
+      rateLimit.foreach(r => rateLimits(endpoint) = r)
+    case req: HttpApiRequest =>
+      println("received HttpApiRequest")
+      getMajorEndpoint(req).map { ep =>
+        println(s"got endpoint: $ep")
+        println(s"uri: ${req.request.uri}")
+        Http().singleRequest(req.request)
+          .map(resp => Response(ep, resp))
           .pipeTo(self)
       }
+  }
+
+  private def getMajorEndpoint(request: HttpApiRequest) = {
+    val majorEndpoint = request match {
+      case ChannelRequest(id, req) => s"channel/$id"
+    }
+    if (isRateLimited(majorEndpoint))
+      Left(RateLimited)
+    else
+      Right(majorEndpoint)
+  }
+
+  def isRateLimited(majorEndpoint: String) = {
+    val rateLimit = rateLimits.getOrElse(majorEndpoint, RateLimit(Int.MaxValue, 0))
+    val currentTime = System.currentTimeMillis / 1000
+    rateLimit.remaining < 1 && currentTime < rateLimit.reset
   }
 
   def callApi: Receive
 }
 
 object HttpApiActor {
-  case class Response(endpoint: String, response: HttpResponse)
-  case class ChannelRequest(channelId: String, request: HttpRequest)
+  case class Response(majorEndpoint: String, response: HttpResponse)
+  case class ChannelRequest(channelId: String, request: HttpRequest) extends HttpApiRequest
   case class GuildRequest(guildId: String, request: HttpRequest)
 
+  trait HttpApiRequest { val request: HttpRequest }
   private case class RateLimit(remaining: Int, reset: Int)
 
+  private case object RateLimited
   val remainingHeader = "X-RateLimit-Remaining"
   val resetHeader = "X-RateLimit-Reset"
+  val baseUrl = "https://discordapp.com/api/v6"
 
   def requestHeaders(token: String): immutable.Seq[HttpHeader] = {
     val authorization = RawHeader("Authorization", s"Bot $token")

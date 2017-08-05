@@ -1,12 +1,13 @@
+import ChannelApi.Message
 import DiscordBot.{Ack, MessageCreated}
-import Messenger.Message
 
 class Bot(token: String) extends DiscordBot(token) {
 
+  val channel = system.actorOf(ChannelApi.props(token))
+
   override def receiveFromDiscord = {
     case MessageCreated(id, "ping") =>
-      println("message received")
-      messenger ! Message(id, "pong")
+      channel ! Message(id, "pong")
       sender ! Ack
   }
 }

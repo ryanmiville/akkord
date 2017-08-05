@@ -17,7 +17,6 @@ abstract class DiscordBot(token: String) extends Actor {
   protected implicit val materializer = ActorMaterializer()
   protected implicit val timeout = Timeout(10 seconds)
 
-  protected val messenger = system.actorOf(Props(classOf[Messenger], token, materializer))
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
   private var lastSeq: Option[Int] = None
