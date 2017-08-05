@@ -20,7 +20,7 @@ class PayloadParser(bot: ActorRef) extends Actor {
     case Payload(-1, cursor)      => sender ! UnsupportedMessage(cursor.value.toString())
   }
 
-  private def parseText(text: String) = {
+  private def parseText(text: String): Unit = {
     println(s"received $text")
     val json   = parse(text).getOrElse(Json.Null)
     val cursor = json.hcursor
@@ -28,7 +28,7 @@ class PayloadParser(bot: ActorRef) extends Actor {
     self forward Payload(op getOrElse -1, cursor)
   }
 
-  private def parseEvent(cursor: HCursor) = {
+  private def parseEvent(cursor: HCursor): Unit = {
     cursor
       .get[Int]("s")
       .toOption
@@ -39,7 +39,7 @@ class PayloadParser(bot: ActorRef) extends Actor {
       .foreach(t => eventParser forward EventParser.Event(t, cursor))
   }
 
-  private def parseHello(cursor: HCursor) = {
+  private def parseHello(cursor: HCursor): Unit = {
     cursor
       .downField("d")
       .get[Int]("heartbeat_interval")

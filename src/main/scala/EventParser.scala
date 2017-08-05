@@ -11,7 +11,7 @@ class EventParser extends Actor {
     case Event(_, cursor)                => sender ! DiscordBot.Event(cursor.value)
   }
 
-  private def parseReady(cursor: HCursor) = {
+  private def parseReady(cursor: HCursor): Unit = {
     cursor
       .downField("d")
       .get[String]("session_id")
@@ -19,7 +19,7 @@ class EventParser extends Actor {
       .foreach(id => sender ! Ready(id))
   }
 
-  private def parseMessageCreated(cursor: HCursor) = {
+  private def parseMessageCreated(cursor: HCursor): Unit = {
     val d = cursor.downField("d")
     if(isNonUserMessage)
       sender ! NonUserMessageCreated

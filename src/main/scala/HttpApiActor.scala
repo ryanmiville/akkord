@@ -16,7 +16,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
   protected val reqHeaders = requestHeaders(token)
   private var rateLimits   = mutable.Map[String, RateLimit]()
 
-  override def receive =
+  override def receive: Receive =
     pipeHttpApiRequest orElse
     sendRequestWithRateLimiting
 
@@ -25,7 +25,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
     case req: HttpApiRequest      => sendRequest(req)
   }
 
-  private def sendRequest(req: HttpApiRequest) = {
+  private def sendRequest(req: HttpApiRequest): Unit = {
     getMajorEndpoint(req).map { ep =>
       Http().singleRequest(req.request)
         .map(resp => Response(ep, resp))
@@ -33,7 +33,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
     }
   }
 
-  private def updateRateLimits(endpoint: String, resp: HttpResponse) = {
+  private def updateRateLimits(endpoint: String, resp: HttpResponse): Unit = {
     resp.discardEntityBytes()
     val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
     val reset     = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
@@ -47,17 +47,17 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
     rateLimit.foreach(r => rateLimits(endpoint) = r)
   }
 
-  private def getMajorEndpoint(request: HttpApiRequest) = {
+  private def getMajorEndpoint(request: HttpApiRequest): Either[RateLimited, String] = {
     val majorEndpoint = request match {
       case ChannelRequest(id, req) => s"channel/$id"
     }
     if (isRateLimited(majorEndpoint))
-      Left(RateLimited)
+      Left(RateLimited())
     else
       Right(majorEndpoint)
   }
 
-  def isRateLimited(majorEndpoint: String) = {
+  def isRateLimited(majorEndpoint: String): Boolean = {
     val rateLimit   = rateLimits.getOrElse(majorEndpoint, RateLimit(Int.MaxValue, 0))
     val currentTime = System.currentTimeMillis / 1000
 
@@ -73,7 +73,7 @@ object HttpApiActor {
   case class Response(majorEndpoint: String, response: HttpResponse)
 
   private case class RateLimit(remaining: Int, reset: Int)
-  private case object RateLimited
+  private case class RateLimited()
 
   val remainingHeader = "X-RateLimit-Remaining"
   val resetHeader     = "X-RateLimit-Reset"
