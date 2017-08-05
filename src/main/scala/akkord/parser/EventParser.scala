@@ -1,5 +1,8 @@
-import DiscordBot.{MessageCreated, NonUserMessageCreated, Ready}
+package akkord.parser
+
 import akka.actor.Actor
+import akkord.DiscordBot
+import akkord.DiscordBot._
 import io.circe.HCursor
 
 class EventParser extends Actor {

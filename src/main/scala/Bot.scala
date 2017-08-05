@@ -1,5 +1,7 @@
-import ChannelApi.Message
-import DiscordBot.{Ack, MessageCreated}
+import akkord.DiscordBot
+import akkord.DiscordBot.{Ack, MessageCreated}
+import akkord.api.ChannelApi
+import akkord.api.ChannelApi.Message
 
 class Bot(token: String) extends DiscordBot(token) {
 

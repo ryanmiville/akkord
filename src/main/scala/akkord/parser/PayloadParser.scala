@@ -1,6 +1,8 @@
-import DiscordBot._
+package akkord.parser
+
 import akka.actor.{Actor, ActorRef, Props}
 import akka.http.scaladsl.model.ws.TextMessage
+import akkord.DiscordBot._
 import io.circe.parser.parse
 import io.circe.{HCursor, Json}
 

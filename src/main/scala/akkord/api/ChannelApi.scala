@@ -1,10 +1,12 @@
-import HttpApiActor._
+package akkord.api
+
 import akka.actor.Props
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model
 import akka.http.scaladsl.model._
 import akka.pattern.pipe
 import akka.stream.ActorMaterializer
+import akkord.api.HttpApiActor.ChannelRequest
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Encoder
 
@@ -17,11 +19,9 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
-    println("channelRequestBundle received")
     Marshal(bundle.channelEntity)
       .to[model.MessageEntity]
       .map { reqEntity =>
-        println(s"entity: ${reqEntity.toString}")
         val req = HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity)
         ChannelRequest(bundle.channelId, req)
       }
@@ -29,7 +29,6 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
   }
 
   private def tellChannelRequestBundle(channelId: String, content: String): Unit = {
-    println(s"Messenger received: $channelId, $content")
     val (method, uri) = createMessageEndpoint(channelId)
     val channelEntity = MessageEntity(content)
     self ! ChannelRequestBundle(channelId, method, uri, channelEntity)
@@ -37,6 +36,8 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
 }
 
 object ChannelApi {
+  import HttpApiActor._
+
   case class Message(channelId: String, content: String)
 
   sealed trait ChannelEntity

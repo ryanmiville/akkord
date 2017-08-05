@@ -1,3 +1,5 @@
+package akkord.api
+
 import akka.actor.Actor
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.{RawHeader, `User-Agent`}

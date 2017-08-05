@@ -1,3 +1,5 @@
+package akkord
+
 import akka.actor.{Actor, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{TextMessage, WebSocketRequest}
@@ -6,6 +8,7 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
 import akka.util.Timeout
 import io.circe.Json
+import parser.PayloadParser
 
 import scala.concurrent.duration._
 

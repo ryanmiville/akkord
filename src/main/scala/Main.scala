@@ -1,4 +1,4 @@
-import DiscordBot.Disconnect
+import akkord.DiscordBot.Disconnect
 import akka.actor.{ActorSystem, Props}
 
 import scala.concurrent.duration._
