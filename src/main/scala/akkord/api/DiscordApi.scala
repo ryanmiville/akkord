@@ -84,7 +84,7 @@ object DiscordApi {
 
   def requestHeaders(token: String): immutable.Seq[HttpHeader] = {
     val authorization = RawHeader("Authorization", s"Bot $token")
-    val userAgent     = `User-Agent`("DiscordBot (https://github.com/ryanmiville/akkord, 1.0)")
+    val userAgent     = `User-Agent`("DiscordBot (https://github.com/ryanmiville/akkord, 0.1)")
     collection.immutable.Seq(authorization, userAgent)
   }
 }
