@@ -9,25 +9,30 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Encoder
 
 class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApiActor(token) with FailFastCirceSupport {
-
   import ChannelApi._
 
-  override def createHttpApiRequest = {
-    case Message(channelId, content) =>
-      println(s"Messenger received: $channelId, $content")
-      val (method, uri) = createMessageEndpoint(channelId)
-      val channelEntity = MessageEntity(content)
-      self ! ChannelRequestBundle(channelId, method, uri, channelEntity)
-    case ChannelRequestBundle(channelId, method, uri, channelEntity) =>
-      println("channelRequestBundle received")
-      Marshal(channelEntity)
-        .to[model.MessageEntity]
-        .map { reqEntity =>
-          println(s"entity: ${reqEntity.toString}")
-          val req = HttpRequest(method, uri, reqHeaders, reqEntity)
-          ChannelRequest(channelId, req)
-        }
-        .pipeTo(self)
+  override def pipeHttpApiRequest = {
+    case Message(channelId, content)  => tellChannelRequestBundle(channelId, content)
+    case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
+  }
+
+  private def pipeChannelRequest(bundle: ChannelRequestBundle) = {
+    println("channelRequestBundle received")
+    Marshal(bundle.channelEntity)
+      .to[model.MessageEntity]
+      .map { reqEntity =>
+        println(s"entity: ${reqEntity.toString}")
+        val req = HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity)
+        ChannelRequest(bundle.channelId, req)
+      }
+      .pipeTo(self)
+  }
+
+  private def tellChannelRequestBundle(channelId: String, content: String) = {
+    println(s"Messenger received: $channelId, $content")
+    val (method, uri) = createMessageEndpoint(channelId)
+    val channelEntity = MessageEntity(content)
+    self ! ChannelRequestBundle(channelId, method, uri, channelEntity)
   }
 }
 
@@ -44,7 +49,8 @@ object ChannelApi {
     channelEntity: ChannelEntity
   )
 
-  def props(token:String)(implicit mat: ActorMaterializer) = Props(classOf[ChannelApi], token, mat)
+  def props(token:String)(implicit mat: ActorMaterializer) =
+    Props(classOf[ChannelApi], token, mat)
 
   implicit val encodeChannelEntity: Encoder[ChannelEntity] =
     (channelEntity: ChannelEntity) => {

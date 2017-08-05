@@ -16,7 +16,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
   private var rateLimits   = mutable.Map[String, RateLimit]()
 
   override def receive =
-    createHttpApiRequest orElse
+    pipeHttpApiRequest orElse
     sendRequestWithRateLimiting
 
   def sendRequestWithRateLimiting: Receive = {
@@ -35,7 +35,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
   private def updateRateLimits(endpoint: String, resp: HttpResponse) = {
     resp.discardEntityBytes()
     val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
-    val reset = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
+    val reset     = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
 
     val rateLimit =
       for {
@@ -63,7 +63,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
     rateLimit.remaining < 1 && currentTime < rateLimit.reset
   }
 
-  def createHttpApiRequest: Receive
+  def pipeHttpApiRequest: Receive
 }
 
 object HttpApiActor {
