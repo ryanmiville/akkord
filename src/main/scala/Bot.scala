@@ -14,6 +14,7 @@ class Bot(token: String) extends DiscordBot(token) {
     case MessageCreated(id, "greet" :: who) =>
       val greeting = ("Hello" :: who).mkString(" ") + "!"
       channel ! Message(id, greeting)
+      sender ! Ack
   }
 }
 

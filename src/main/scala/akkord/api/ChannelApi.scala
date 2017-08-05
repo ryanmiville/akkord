@@ -13,7 +13,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case Message(channelId, content)  => tellChannelRequestBundle(channelId, content)
+    case msg @ Message(_, content)    => tellChannelRequestBundle(msg, MessagePayload(content))
     case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
   }
 
@@ -27,17 +27,17 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
       .pipeTo(self)
   }
 
-  private def tellChannelRequestBundle(channelId: String, content: String): Unit = {
-    val (method, uri) = createMessageEndpoint(channelId)
-    val channelEntity = MessagePayload(content)
-    self ! ChannelRequestBundle(channelId, method, uri, channelEntity)
+  private def tellChannelRequestBundle(msg: Message, payload: ChannelPayload) = {
+    val (method, uri) = getEndpoint(msg)
+    self ! ChannelRequestBundle(msg.channelId, method, uri, payload)
   }
 }
 
 object ChannelApi {
   import DiscordApi._
 
-  case class Message(channelId: String, content: String)
+  trait ChannelRequest
+  case class Message(channelId: String, content: String) extends ChannelRequest
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
@@ -56,6 +56,11 @@ object ChannelApi {
       }
   }
 
+  private def getEndpoint(req: ChannelRequest) = {
+    req match {
+      case Message(id, _) => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
+    }
+  }
   private def createMessageEndpoint(channelId: String): (HttpMethod, String) =
     (HttpMethods.POST, s"$baseUrl/channels/$channelId/messages")
 
