@@ -36,7 +36,7 @@ class EventParser extends Actor {
       for {
         content   <- d.get[String]("content").toOption
         channelId <- d.get[String]("channel_id").toOption
-      } yield MessageCreated(channelId, (content split " "): _*)
+      } yield MessageCreated(channelId, (content split " ").toList)
     }
   }
 }

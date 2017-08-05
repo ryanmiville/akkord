@@ -80,16 +80,16 @@ object DiscordBot {
   case object Disconnect
 
   trait GatewayPayload
-  case class Hello(heartbeatInterval: Int)                       extends GatewayPayload
-  case class Event(json: Json)                                   extends GatewayPayload
-  case class UnsupportedMessage(text: String)                    extends GatewayPayload
-  case class Ready(sessionId: String)                            extends GatewayPayload
-  case class MessageCreated(channelId: String, content: String*) extends GatewayPayload
-  case object NonUserMessageCreated                              extends GatewayPayload
-  case object Reconnect                                          extends GatewayPayload
-  case object HeartBeatAck                                       extends GatewayPayload
-  case object StatusUpdate                                       extends GatewayPayload
-  case object InvalidSession                                     extends GatewayPayload
+  case class Hello(heartbeatInterval: Int)                            extends GatewayPayload
+  case class Event(json: Json)                                        extends GatewayPayload
+  case class UnsupportedMessage(text: String)                         extends GatewayPayload
+  case class Ready(sessionId: String)                                 extends GatewayPayload
+  case class MessageCreated(channelId: String, content: List[String]) extends GatewayPayload
+  case object NonUserMessageCreated                                   extends GatewayPayload
+  case object Reconnect                                               extends GatewayPayload
+  case object HeartBeatAck                                            extends GatewayPayload
+  case object StatusUpdate                                            extends GatewayPayload
+  case object InvalidSession                                          extends GatewayPayload
 
   case object HeartBeat
   case class NewSeq(s: Int)
