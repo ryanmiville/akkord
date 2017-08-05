@@ -12,61 +12,62 @@ import scala.concurrent.duration._
 abstract class DiscordBot(token: String) extends Actor {
   import DiscordBot._
 
-  private implicit val executionContext = context.system.dispatcher
-  private implicit val system = context.system
-  private implicit val materializer = ActorMaterializer()
-  implicit val timeout = Timeout(10 seconds)
+  protected implicit val ec = context.system.dispatcher
+  protected implicit val system = context.system
+  protected implicit val materializer = ActorMaterializer()
+  protected implicit val timeout = Timeout(10 seconds)
 
   protected val messenger = system.actorOf(Props(classOf[Messenger], token, materializer))
-
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
-  private var lastSeq: Option[Int] = None
 
+  private var lastSeq: Option[Int] = None
   private var sessionId = ""
+
   private val (queue, killswitch) =
     Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
       .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
       .viaMat(KillSwitches.single)(Keep.both)
       .collect { case tm: TextMessage.Strict => tm }
-      .mapAsync(1)(msg => (payloadParser ? msg).mapTo[GatewayPayload])
+      .mapAsync(10)(msg => (payloadParser ? msg).mapTo[GatewayPayload])
       .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
       .run()
 
-  override def receive =
+  override def receive: Receive =
     receiveFromDiscord orElse
     receiveStreamPlumbing orElse
     receiveGatewayPayload orElse
     { case _ => sender ! Ack }
 
   private def receiveStreamPlumbing: Receive = {
-    case Init =>
-      sender ! Ack
-    case Disconnect =>
-      killswitch.shutdown()
-    case Complete =>
-      context.stop(self)
+    case Init       => sender ! Ack
+    case Disconnect => killswitch.shutdown()
+    case Complete   => context.stop(self)
   }
 
   private def receiveGatewayPayload: Receive = {
-    case Hello(interval) =>
-      queue.offer(identify(token))
-      system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
-      sender ! Ack
-    case HeartBeat =>
-      queue.offer(heartbeat(lastSeq))
-    case HeartBeatAck =>
-      sender ! Ack
-    case Event(json) =>
-      println(json)
-      sender ! Ack
-    case Ready(id) =>
-      sessionId = id
-      sender ! Ack
-    case Reconnect =>
-      queue.offer(resume(token, sessionId, lastSeq))
-      sender ! Ack
-    case NewSeq(s) =>
-      lastSeq = Some(s)
+    case Hello(interval) => scheduleHeartBeat(interval)
+    case HeartBeat       => queue.offer(heartbeat(lastSeq))
+    case HeartBeatAck    => sender ! Ack
+    case Event(json)     => sender ! Ack
+    case Ready(id)       => saveSessionId(id)
+    case Reconnect       => attemptReconnect
+    case NewSeq(s)       => lastSeq = Some(s)
+  }
+
+  private def attemptReconnect: Unit = {
+    queue.offer(resume(token, sessionId, lastSeq))
+    sender ! Ack
+  }
+
+  private def saveSessionId(id: String): Unit = {
+    sessionId = id
+    sender ! Ack
+  }
+
+  private def scheduleHeartBeat(interval: Int): Unit = {
+    queue.offer(identify(token))
+    system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
+    sender ! Ack
   }
 
   def receiveFromDiscord: Receive

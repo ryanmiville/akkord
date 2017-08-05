@@ -1,36 +1,43 @@
-import akka.actor.Actor
-import akka.http.scaladsl.Http
+import HttpApiActor.ChannelRequest
 import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.RawHeader
+import akka.pattern.pipe
 import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-class Messenger(token: String)(implicit mat: ActorMaterializer) extends Actor with FailFastCirceSupport {
+import scala.concurrent.Future
+
+class Messenger(token: String)(implicit mat: ActorMaterializer) extends HttpApiActor(token) with FailFastCirceSupport {
 
   import Messenger._
   import io.circe.generic.auto._
 
-  implicit protected val executionContext = context.system.dispatcher
-  implicit val system = context.system
-  protected val authorization = RawHeader("Authorization", s"Bot $token")
-  protected val userAgent = headers.`User-Agent`("DiscordBot (https://github.com/ryanmiville/akkord, 1.0)")
-  protected val reqHeaders = List(authorization, userAgent)
+//  override def receive = {
+//    case Message(channelId, content) =>
+//      println(s"Messenger received: $channelId, $content")
+//      val channelRequest = makeRequest(channelId, content)
+//      channelRequest pipeTo self
+//    case resp: HttpResponse =>
+//      println(resp.status)
+//      resp.discardEntityBytes()
+//  }
 
-  override def receive = {
+  private def makeRequest(channelId: String, content: String): Future[ChannelRequest] = {
+    Marshal(MessageEntity(content))
+      .to[model.MessageEntity]
+      .map { requestEntity =>
+        val request = HttpRequest(HttpMethods.POST, getUri(channelId), headers = reqHeaders, entity = requestEntity)
+        println("made request")
+        ChannelRequest(channelId, request)
+      }
+  }
+
+  override def callApi = {
     case Message(channelId, content) =>
       println(s"Messenger received: $channelId, $content")
-      Marshal(MessageEntity(content))
-        .to[RequestEntity]
-        .flatMap { requestEntity =>
-          val request = HttpRequest(HttpMethods.POST, getUri(channelId), headers = reqHeaders, entity = requestEntity)
-          println("made request")
-          Http().singleRequest(request)
-        }
-        .map { resp =>
-          println(resp.status)
-          resp.discardEntityBytes()
-        }
+      val response = makeRequest(channelId, content)
+      response pipeTo self
   }
 }
 
