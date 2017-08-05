@@ -29,3 +29,7 @@ libraryDependencies ++= Seq(
 resolvers += Resolver.bintrayRepo("hseeberger", "maven")
 
 libraryDependencies += "de.heikoseeberger" %% "akka-http-circe" % "1.17.0"
+
+licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
+
+bintrayPackageLabels := Seq("discord", "scala", "akka")
