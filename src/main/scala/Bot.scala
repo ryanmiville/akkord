@@ -1,17 +1,14 @@
-import akka.actor.{Actor, Props}
+import ChannelApi.Message
+import DiscordBot.{Ack, MessageCreated}
 
-class Bot(token: String) extends Actor {
-  import Bot._
+class Bot(token: String) extends DiscordBot(token) {
 
-  implicit private val system = context.system
-  private val messenger = system.actorOf(Props(classOf[Messenger], token))
+  val channel = system.actorOf(ChannelApi.props(token))
 
-  override def receive = {
-    case Msg(id, "ping") =>
-      messenger ! Messenger.Message(id, "pong")
+  override def receiveFromDiscord = {
+    case MessageCreated(id, "ping") =>
+      channel ! Message(id, "pong")
+      sender ! Ack
   }
 }
 
-object Bot {
-  case class Msg(channelId: String, content: String*)
-}
