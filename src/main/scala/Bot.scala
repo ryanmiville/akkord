@@ -5,7 +5,7 @@ class Bot(token: String) extends DiscordBot(token) {
 
   val channel = system.actorOf(ChannelApi.props(token))
 
-  override def botBehavior = {
+  override def botBehavior: Receive = {
     case MessageCreated(id, "ping" :: Nil) =>
       channel ! Message(id, "pong")
       sender ! Ack

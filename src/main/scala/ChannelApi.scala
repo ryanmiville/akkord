@@ -11,12 +11,12 @@ import io.circe.Encoder
 class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApiActor(token) with FailFastCirceSupport {
   import ChannelApi._
 
-  override def pipeHttpApiRequest = {
+  override def pipeHttpApiRequest: Receive = {
     case Message(channelId, content)  => tellChannelRequestBundle(channelId, content)
     case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
   }
 
-  private def pipeChannelRequest(bundle: ChannelRequestBundle) = {
+  private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
     println("channelRequestBundle received")
     Marshal(bundle.channelEntity)
       .to[model.MessageEntity]
@@ -28,7 +28,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends HttpApi
       .pipeTo(self)
   }
 
-  private def tellChannelRequestBundle(channelId: String, content: String) = {
+  private def tellChannelRequestBundle(channelId: String, content: String): Unit = {
     println(s"Messenger received: $channelId, $content")
     val (method, uri) = createMessageEndpoint(channelId)
     val channelEntity = MessageEntity(content)
@@ -41,15 +41,10 @@ object ChannelApi {
 
   sealed trait ChannelEntity
   case class MessageEntity(content: String) extends ChannelEntity
-  private case class ChannelRequestBundle
-  (
-    channelId: String,
-    method: HttpMethod,
-    uri: String,
-    channelEntity: ChannelEntity
-  )
 
-  def props(token:String)(implicit mat: ActorMaterializer) =
+  private case class ChannelRequestBundle(channelId: String, method: HttpMethod, uri: String, channelEntity: ChannelEntity)
+
+  def props(token:String)(implicit mat: ActorMaterializer): Props =
     Props(classOf[ChannelApi], token, mat)
 
   implicit val encodeChannelEntity: Encoder[ChannelEntity] =
