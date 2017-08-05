@@ -9,7 +9,7 @@ import scala.collection.{immutable, mutable}
 
 abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) extends Actor {
   import HttpApiActor._
-  
+
   implicit protected val ec = context.system.dispatcher
   implicit val system       = context.system
 

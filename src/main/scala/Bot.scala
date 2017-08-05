@@ -9,6 +9,8 @@ class Bot(token: String) extends DiscordBot(token) {
     case MessageCreated(id, "ping") =>
       channel ! Message(id, "pong")
       sender ! Ack
+    case MessageCreated(id, "greet", personToGreet) =>
+      channel ! Message(id, s"Hello $personToGreet!")
   }
 }
 
