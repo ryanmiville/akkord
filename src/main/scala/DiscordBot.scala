@@ -12,10 +12,10 @@ import scala.concurrent.duration._
 abstract class DiscordBot(token: String) extends Actor {
   import DiscordBot._
 
-  protected implicit val ec = context.system.dispatcher
-  protected implicit val system = context.system
+  protected implicit val ec           = context.system.dispatcher
+  protected implicit val system       = context.system
   protected implicit val materializer = ActorMaterializer()
-  protected implicit val timeout = Timeout(10 seconds)
+  protected implicit val timeout      = Timeout(10 seconds)
 
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
@@ -32,7 +32,7 @@ abstract class DiscordBot(token: String) extends Actor {
       .run()
 
   override def receive: Receive =
-    receiveFromDiscord orElse
+    botBehavior orElse
     receiveStreamPlumbing orElse
     receiveGatewayPayload orElse
     { case _ => sender ! Ack }
@@ -69,7 +69,7 @@ abstract class DiscordBot(token: String) extends Actor {
     sender ! Ack
   }
 
-  def receiveFromDiscord: Receive
+  def botBehavior: Receive
 }
 
 object DiscordBot {
@@ -77,22 +77,22 @@ object DiscordBot {
   case object Ack
   private case object Complete
 
+  case object Disconnect
+
   trait GatewayPayload
-  case class Hello(heartbeatInterval: Int) extends GatewayPayload
-  case class Event(json: Json) extends GatewayPayload
-  case class UnsupportedMessage(text: String) extends GatewayPayload
-  case class Ready(sessionId: String) extends GatewayPayload
-  case class MessageCreated(channelId: String, content: String*) extends GatewayPayload
-  case object NonUserMessageCreated extends GatewayPayload
-  case object Reconnect extends GatewayPayload
-  case object HeartBeatAck extends GatewayPayload
-  case object StatusUpdate extends GatewayPayload
-  case object InvalidSession extends GatewayPayload
+  case class Hello(heartbeatInterval: Int)                            extends GatewayPayload
+  case class Event(json: Json)                                        extends GatewayPayload
+  case class UnsupportedMessage(text: String)                         extends GatewayPayload
+  case class Ready(sessionId: String)                                 extends GatewayPayload
+  case class MessageCreated(channelId: String, content: List[String]) extends GatewayPayload
+  case object NonUserMessageCreated                                   extends GatewayPayload
+  case object Reconnect                                               extends GatewayPayload
+  case object HeartBeatAck                                            extends GatewayPayload
+  case object StatusUpdate                                            extends GatewayPayload
+  case object InvalidSession                                          extends GatewayPayload
 
   case object HeartBeat
   case class NewSeq(s: Int)
-
-  case object Disconnect
 
   private type WsMessage = akka.http.scaladsl.model.ws.Message
 

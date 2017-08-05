@@ -1,11 +1,11 @@
 import DiscordBot._
-import PayloadParser.Payload
 import akka.actor.{Actor, ActorRef, Props}
 import akka.http.scaladsl.model.ws.TextMessage
 import io.circe.parser.parse
 import io.circe.{HCursor, Json}
 
 class PayloadParser(bot: ActorRef) extends Actor {
+  import PayloadParser._
 
   val eventParser = context.actorOf(Props(classOf[EventParser]))
 
@@ -22,9 +22,9 @@ class PayloadParser(bot: ActorRef) extends Actor {
 
   private def parseText(text: String) = {
     println(s"received $text")
-    val json = parse(text).getOrElse(Json.Null)
+    val json   = parse(text).getOrElse(Json.Null)
     val cursor = json.hcursor
-    val op = cursor.get[Int]("op").toOption
+    val op     = cursor.get[Int]("op").toOption
     self forward Payload(op getOrElse -1, cursor)
   }
 

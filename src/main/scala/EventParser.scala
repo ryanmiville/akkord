@@ -1,9 +1,10 @@
 import DiscordBot.{MessageCreated, NonUserMessageCreated, Ready}
-import EventParser.Event
 import akka.actor.Actor
 import io.circe.HCursor
 
 class EventParser extends Actor {
+  import EventParser._
+
   override def receive = {
     case Event("READY", cursor)          => parseReady(cursor)
     case Event("MESSAGE_CREATE", cursor) => parseMessageCreated(cursor)
@@ -20,20 +21,22 @@ class EventParser extends Actor {
 
   private def parseMessageCreated(cursor: HCursor) = {
     val d = cursor.downField("d")
-    if(isNonUserMessage) sender ! NonUserMessageCreated
-    else parseUserMessageCreated.foreach(msg => sender ! msg)
+    if(isNonUserMessage)
+      sender ! NonUserMessageCreated
+    else
+      parseUserMessageCreated.foreach(msg => sender ! msg)
 
     def isNonUserMessage: Boolean = {
       val isWebhook = cursor.get[String]("webhook_id").toOption.isDefined
-      val isBot = d.downField("author").get[Boolean]("bot").getOrElse(false)
+      val isBot     = d.downField("author").get[Boolean]("bot").getOrElse(false)
       isBot || isWebhook
     }
 
     def parseUserMessageCreated: Option[MessageCreated] = {
       for {
-        content <- d.get[String]("content").toOption
+        content   <- d.get[String]("content").toOption
         channelId <- d.get[String]("channel_id").toOption
-      } yield MessageCreated(channelId, (content split " "): _*)
+      } yield MessageCreated(channelId, (content split " ").toList)
     }
   }
 }
