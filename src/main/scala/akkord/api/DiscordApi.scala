@@ -9,8 +9,8 @@ import akka.stream.ActorMaterializer
 
 import scala.collection.{immutable, mutable}
 
-abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) extends Actor {
-  import HttpApiActor._
+abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor {
+  import DiscordApi._
 
   implicit protected val ec = context.system.dispatcher
   implicit val system       = context.system
@@ -69,7 +69,7 @@ abstract class HttpApiActor(token: String)(implicit mat: ActorMaterializer) exte
   def pipeHttpApiRequest: Receive
 }
 
-object HttpApiActor {
+object DiscordApi {
   trait HttpApiRequest { val request: HttpRequest }
   case class ChannelRequest(channelId: String, request: HttpRequest) extends HttpApiRequest
   case class Response(majorEndpoint: String, response: HttpResponse)
