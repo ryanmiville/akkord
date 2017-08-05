@@ -1,6 +1,6 @@
 name := "akkord"
 
-version := "1.0"
+version := "alpha-0.1"
 
 scalaVersion := "2.12.3"
 
