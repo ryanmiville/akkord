@@ -27,6 +27,13 @@ class Bot(token: String) extends DiscordBot(token) {
       sender ! Ack
   }
 }
+
+object Main {
+  def main(args: Array[String]): Unit = {
+    val token = args(0)
+    ActorSystem().actorOf(Props(classOf[Bot], token))
+  }
+}
 ```
 **IMPORTANT NOTE:** Your bot _MUST_ reply with `Ack` to `sender` at the end of each case to provide a back-pressure signal to the underlying stream that represents your connection with Discord's servers. Without this signal, the stream will stop sending messages to your bot because it thinks it is being overwhelmed.
 
