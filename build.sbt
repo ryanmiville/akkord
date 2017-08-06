@@ -2,6 +2,10 @@ name := "akkord"
 
 version := "0.1"
 
+organization := "com.github.ryanmiville"
+
+licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
+
 scalaVersion := "2.12.3"
 
 val akkaVersion = "2.4.19"
@@ -29,7 +33,3 @@ libraryDependencies ++= Seq(
 resolvers += Resolver.bintrayRepo("hseeberger", "maven")
 
 libraryDependencies += "de.heikoseeberger" %% "akka-http-circe" % "1.17.0"
-
-licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-
-organization := "com.github.ryanmiville"
