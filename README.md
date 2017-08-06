@@ -1,6 +1,4 @@
 # Akkord
-A Discord bot library built with Akka
-
 Akkord's goal is to make writing a bot as easy as writing an Akka Actor, while handling all of the necessary connection infrastructure and API rules (rate limiting, etc.) for you.
 
 Akkord is still very much in the early stages of development.
