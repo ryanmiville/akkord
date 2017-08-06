@@ -31,4 +31,6 @@ class Bot(token: String) extends DiscordBot(token) {
 **IMPORTANT NOTE:** Your bot _MUST_ rely with `Ack` to `sender` at the end of each case to provide a back-pressure signal to the underlying stream that represents your connection with Discord's servers. Without this signal, the stream will stop sending messages to your bot because it thinks it is being overwhelmed.
 
 # Discord APIs
-You interact with the Discord APIs via Actors. Each API resource has a corresponding actor (eventually :slight-smile:). Please visit the [developer documentation](https://discordapp.com/developers/docs/intro) to learn what's capable and to get a good idea of what to expect from Akkord.
+You interact with the Discord APIs via Actors. Each API resource has a corresponding actor... eventually :)
+
+Please visit the [developer documentation](https://discordapp.com/developers/docs/intro) to learn what's capable and to get a good idea of what to expect from Akkord.
