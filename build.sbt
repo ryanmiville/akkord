@@ -8,6 +8,9 @@ licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 scalaVersion := "2.12.3"
 
+scalacOptions ++= Seq(
+  "-feature"
+)
 val akkaVersion = "2.4.19"
 
 val akkaHttpVersion = "10.0.9"

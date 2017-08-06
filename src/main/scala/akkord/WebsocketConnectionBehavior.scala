@@ -14,6 +14,7 @@ import akkord.parser.PayloadParser
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 trait WebsocketConnectionBehavior {
   this: Actor  with FailFastCirceSupport =>
