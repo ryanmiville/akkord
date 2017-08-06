@@ -28,9 +28,9 @@ class Bot(token: String) extends DiscordBot(token) {
   }
 }
 ```
-![image](https://user-images.githubusercontent.com/2359050/28999933-e2e703f6-7a28-11e7-8e92-11445b1ce8f4.png)
+![Screenshot](https://user-images.githubusercontent.com/2359050/28999933-e2e703f6-7a28-11e7-8e92-11445b1ce8f4.png)
 
-**IMPORTANT NOTE:** Your bot _MUST_ rely with `Ack` to `sender` at the end of each case to provide a back-pressure signal to the underlying stream that represents your connection with Discord's servers. Without this signal, the stream will stop sending messages to your bot because it thinks it is being overwhelmed.
+**IMPORTANT NOTE:** Your bot _MUST_ reply with `Ack` to `sender` at the end of each case to provide a back-pressure signal to the underlying stream that represents your connection with Discord's servers. Without this signal, the stream will stop sending messages to your bot because it thinks it is being overwhelmed.
 
 # Discord APIs
 You interact with the Discord APIs via Actors. Each API resource has a corresponding actor... eventually :)
