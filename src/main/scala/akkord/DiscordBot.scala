@@ -20,7 +20,7 @@ abstract class DiscordBot(token: String) extends Actor
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
 
-  override def preStart() = {
+  override def preStart(): Unit = {
     Http(system).singleRequest(HttpRequest(uri = s"$baseUrl/gateway"))
       .pipeTo(self)
   }

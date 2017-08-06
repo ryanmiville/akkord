@@ -38,7 +38,7 @@ trait WebsocketConnectionBehavior {
     case Connection(url)                            => connect(url)
   }
 
-  protected def connect(url: String) = {
+  protected def connect(url: String): Unit = {
     context become connected
     connectionUrl = Some(url)
     val (q, ks)   = runStream(url)
@@ -56,7 +56,7 @@ trait WebsocketConnectionBehavior {
       .run()
   }
 
-  private def pipeConnection(entity: ResponseEntity) = {
+  private def pipeConnection(entity: ResponseEntity): Unit = {
     import io.circe.generic.auto._
     Unmarshal(entity)
       .to[Connection]
