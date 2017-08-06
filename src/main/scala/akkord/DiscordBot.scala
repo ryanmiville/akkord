@@ -2,17 +2,22 @@ package akkord
 
 import akka.actor.{Actor, Props}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.http.scaladsl.model.ws.{TextMessage, WebSocketRequest}
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.ask
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy}
+import akka.pattern.pipe
+import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueueWithComplete}
+import akka.stream.{ActorMaterializer, KillSwitches, OverflowStrategy, UniqueKillSwitch}
 import akka.util.Timeout
 import io.circe.Json
 import parser.PayloadParser
+import api.DiscordApi._
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.duration._
 
-abstract class DiscordBot(token: String) extends Actor {
+abstract class DiscordBot(token: String) extends Actor with FailFastCirceSupport{
   import DiscordBot._
 
   protected implicit val ec           = context.system.dispatcher
@@ -22,23 +27,48 @@ abstract class DiscordBot(token: String) extends Actor {
 
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
+  private var connectionUrl = ""
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
 
-  private val (queue, killswitch) =
-    Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
-      .via(Http().webSocketClientFlow(WebSocketRequest("wss://gateway.discord.gg?v=6&encoding=json")))
-      .viaMat(KillSwitches.single)(Keep.both)
-      .collect { case tm: TextMessage.Strict => tm }
-      .mapAsync(10)(msg => (payloadParser ? msg).mapTo[GatewayPayload])
-      .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
-      .run()
+  var queue: SourceQueueWithComplete[DiscordBot.WsMessage] = null
+  var killswitch: UniqueKillSwitch = null
 
-  override def receive: Receive =
+  override def preStart() = {
+    Http().singleRequest(HttpRequest(uri = s"$baseUrl/gateway"))
+      .pipeTo(self)
+  }
+
+  override def receive: Receive = connecting
+
+  private def connecting: Receive = {
+    case HttpResponse(StatusCodes.OK, _, entity, _) =>
+      import io.circe.generic.auto._
+      Unmarshal(entity)
+        .to[Connection]
+        .pipeTo(self)
+    case Connection(url) =>
+      connectionUrl = url
+      context become connected
+      val (q, ks) =
+        Source.queue[WsMessage](Int.MaxValue, OverflowStrategy.dropBuffer)
+          .via(Http().webSocketClientFlow(WebSocketRequest(s"$url?v=6&encoding=json")))
+          .viaMat(KillSwitches.single)(Keep.both)
+          .collect { case tm: TextMessage.Strict => tm }
+          .mapAsync(10)(msg => (payloadParser ? msg).mapTo[GatewayPayload])
+          .to(Sink.actorRefWithAck(self, Init, Ack, Complete))
+          .run()
+      queue = q
+      killswitch = ks
+    case resp @ HttpResponse(code, _, _, _) =>
+      println(s"Failed to retrieve URL: $code")
+  }
+
+  private def connected: Receive =
     botBehavior orElse
-    receiveStreamPlumbing orElse
-    receiveGatewayPayload orElse
-    { case _ => sender ! Ack }
+      receiveStreamPlumbing orElse
+      receiveGatewayPayload orElse
+      { case _ => sender ! Ack }
 
   private def receiveStreamPlumbing: Receive = {
     case Init       => sender ! Ack
@@ -76,6 +106,8 @@ abstract class DiscordBot(token: String) extends Actor {
 }
 
 object DiscordBot {
+  case class Connection(url: String)
+
   private case object Init
   case object Ack
   private case object Complete
