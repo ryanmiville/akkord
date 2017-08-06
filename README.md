@@ -11,7 +11,7 @@ libraryDependencies += "com.github.ryanmiville" %% "akkord" % "0.1"
 ```
 
 # Usage
-Your bot is simply a specialized actor and should feel very familiar to anyone familiar with Akka.
+Your bot is simply a specialized actor and should feel very familiar to anyone with Akka experience.
 ```scala
 class Bot(token: String) extends DiscordBot(token) {
 
