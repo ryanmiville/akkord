@@ -60,8 +60,6 @@ abstract class DiscordBot(token: String) extends Actor
 }
 
 object DiscordBot {
-  case object Disconnect
-
   trait GatewayPayload
   case class Hello(heartbeatInterval: Int)                            extends GatewayPayload
   case class Event(json: Json)                                        extends GatewayPayload
