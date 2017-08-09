@@ -1,12 +1,8 @@
 package akkord
 
 import akka.actor.Actor
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.ws.TextMessage
-import akka.pattern.pipe
 import akkord.WebsocketConnectionBehavior._
-import akkord.api.DiscordApi._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 
@@ -20,11 +16,6 @@ abstract class DiscordBot(token: String) extends Actor
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
 
-  override def preStart(): Unit = {
-    Http(system).singleRequest(HttpRequest(uri = s"$baseUrl/gateway"))
-      .pipeTo(self)
-  }
-
   override def receive: Receive = connecting
 
   override def connected: Receive =
@@ -33,20 +24,14 @@ abstract class DiscordBot(token: String) extends Actor
     receiveGatewayPayload orElse
     { case _ => sender ! Ack }
 
-  private def receiveStreamPlumbing: Receive = {
-    case Init       => sender ! Ack
-    case Disconnect => killswitch.shutdown()
-    case Complete   => context.stop(self)
-  }
-
   private def receiveGatewayPayload: Receive = {
-    case Hello(interval) => scheduleHeartBeat(interval)
-    case HeartBeat       => queue.offer(heartbeat(lastSeq))
-    case HeartBeatAck    => sender ! Ack
-    case Event(json)     => sender ! Ack
-    case Ready(id)       => saveSessionId(id)
-    case Reconnect       => attemptReconnect
-    case NewSeq(s)       => lastSeq = Some(s)
+    case Hello(interval)     => scheduleHeartBeat(interval)
+    case HeartBeat(interval) => sendHeartBeat(interval)
+    case HeartBeatAck        => sender ! Ack
+    case Event(json)         => sender ! Ack
+    case Ready(id)           => saveSessionId(id)
+    case Reconnect           => attemptReconnect
+    case NewSeq(s)           => lastSeq = Some(s)
   }
 
   private def attemptReconnect: Unit = {
@@ -61,7 +46,13 @@ abstract class DiscordBot(token: String) extends Actor
 
   private def scheduleHeartBeat(interval: Int): Unit = {
     queue.offer(identify(token))
-    system.scheduler.schedule(interval millis, interval millis, self, HeartBeat)
+    system.scheduler.scheduleOnce(interval millis, self, HeartBeat(interval))
+    sender ! Ack
+  }
+
+  private def sendHeartBeat(interval: Int): Unit = {
+    queue.offer(heartbeat(lastSeq))
+    system.scheduler.scheduleOnce(interval millis, self, HeartBeat(interval))
     sender ! Ack
   }
 
@@ -83,7 +74,7 @@ object DiscordBot {
   case object StatusUpdate                                            extends GatewayPayload
   case object InvalidSession                                          extends GatewayPayload
 
-  case object HeartBeat
+  case class HeartBeat(interval: Int)
   case class NewSeq(s: Int)
 
   private def identify(token: String) = TextMessage(

@@ -1,15 +1,17 @@
 package akkord
 
+import akka.actor.Status.Failure
 import akka.actor.{Actor, Props}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
-import akka.http.scaladsl.model.{HttpResponse, ResponseEntity, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{ask, pipe}
 import akka.stream._
 import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueueWithComplete}
 import akka.util.Timeout
 import akkord.DiscordBot.GatewayPayload
+import akkord.api.DiscordApi.baseUrl
 import akkord.parser.PayloadParser
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
@@ -33,9 +35,43 @@ trait WebsocketConnectionBehavior {
 
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
+  override def preStart(): Unit = {
+    getConnectionUrl()
+  }
+
+  def connected: Receive
+
+  protected def receiveStreamPlumbing: Receive = {
+    case Init       => sender ! Ack
+    case Complete   => connectionClosed()
+  }
+
   def connecting: Receive = {
     case HttpResponse(StatusCodes.OK, _, entity, _) => pipeConnection(entity)
     case Connection(url)                            => connect(url)
+    case HttpResponse(notOk, _, _,_)                => retryConnection()
+    case LostConnection                             => retryConnection()
+    case Failure(_)                                 => retryConnection()
+  }
+
+
+  private def connectionClosed(): Unit = {
+    context become connecting
+    self ! LostConnection
+  }
+
+  private def getConnectionUrl(): Unit = {
+    Http(system).singleRequest(HttpRequest(uri = s"$baseUrl/gateway"))
+      .pipeTo(self)
+  }
+
+  private def retryConnection(): Unit = {
+    system.scheduler.scheduleOnce(30 seconds) {
+      connectionUrl match {
+        case Some(url) => connect(url)
+        case None      => getConnectionUrl()
+      }
+    }
   }
 
   protected def connect(url: String): Unit = {
@@ -62,8 +98,6 @@ trait WebsocketConnectionBehavior {
       .to[Connection]
       .pipeTo(self)
   }
-
-  def connected: Receive
 }
 
 object WebsocketConnectionBehavior {
@@ -72,4 +106,5 @@ object WebsocketConnectionBehavior {
   case object Complete
 
   case class Connection(url: String)
+  case object LostConnection
 }
