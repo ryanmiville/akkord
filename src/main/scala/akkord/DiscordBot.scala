@@ -75,13 +75,15 @@ object DiscordBot {
   case class HeartBeat(interval: Int)
   case class NewSeq(s: Int)
 
+  private val os = System.getProperty("os.name")
+
   private def identify(token: String) = TextMessage(
     s"""{
        |    "op": 2,
        |    "d": {
        |        "token": "$token",
        |        "properties": {
-       |            "$$os": "macos",
+       |            "$$os": "$os",
        |            "$$browser": "akkord",
        |            "$$device": "akkord"
        |        },
