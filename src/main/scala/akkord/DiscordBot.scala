@@ -19,7 +19,7 @@ abstract class DiscordBot(token: String) extends Actor
   override def receive: Receive = connecting
 
   override def connected: Receive =
-    botBehavior orElse
+    botBehaviorWithBackPressure orElse
     receiveStreamPlumbing orElse
     receiveGatewayPayload orElse
     { case _ => sender ! Ack }
@@ -56,7 +56,13 @@ abstract class DiscordBot(token: String) extends Actor
     sender ! Ack
   }
 
-  def botBehavior: Receive
+  private def botBehaviorWithBackPressure: Receive = {
+    case event: akkord.Event.Event =>
+      Some(event) collect botBehavior
+      sender ! Ack
+  }
+  
+  def botBehavior: ReceiveEvent
 }
 
 object DiscordBot {
@@ -74,6 +80,8 @@ object DiscordBot {
 
   case class HeartBeat(interval: Int)
   case class NewSeq(s: Int)
+
+  type ReceiveEvent = PartialFunction[akkord.Event.Event, Unit]
 
   private val os = System.getProperty("os.name")
 

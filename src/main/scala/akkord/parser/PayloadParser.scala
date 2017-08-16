@@ -23,6 +23,7 @@ class PayloadParser(bot: ActorRef) extends Actor {
   }
 
   private def parseText(text: String): Unit = {
+    println(text)
     val json   = parse(text).getOrElse(Json.Null)
     val cursor = json.hcursor
     val op     = cursor.get[Int]("op").toOption

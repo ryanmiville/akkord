@@ -3,6 +3,8 @@ package akkord.parser
 import akka.actor.Actor
 import akkord.DiscordBot
 import akkord.DiscordBot._
+import akkord.Event.Message
+import io.circe.Decoder.Result
 import io.circe.HCursor
 
 class EventParser extends Actor {
@@ -35,11 +37,9 @@ class EventParser extends Actor {
       isBot || isWebhook
     }
 
-    def parseUserMessageCreated: Option[MessageCreated] = {
-      for {
-        content   <- d.get[String]("content").toOption
-        channelId <- d.get[String]("channel_id").toOption
-      } yield MessageCreated(channelId, (content split " ").toList)
+    def parseUserMessageCreated: Result[Message] = {
+      import io.circe.generic.auto._
+      d.as[Message]
     }
   }
 }
