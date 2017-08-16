@@ -38,15 +38,8 @@ class EventParser extends Actor {
     }
 
     def parseUserMessageCreated: Result[Message] = {
-      import io.circe.syntax._
       import io.circe.generic.auto._
-      val m = d.as[Message]
-      println(m)
-      m
-//      for {
-//        content   <- d.get[String]("content").toOption
-//        channelId <- d.get[String]("channel_id").toOption
-//      } yield MessageCreated(channelId, (content split " ").toList)
+      d.as[Message]
     }
   }
 }

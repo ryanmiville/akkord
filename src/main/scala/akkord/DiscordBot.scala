@@ -58,8 +58,7 @@ abstract class DiscordBot(token: String) extends Actor
 
   private def botBehaviorWithBackPressure: Receive = {
     case event: akkord.Event.Event =>
-      val wrapped = botBehavior
-      wrapped(event)
+      Some(event) collect botBehavior
       sender ! Ack
   }
   def botBehavior: ReceiveEvent

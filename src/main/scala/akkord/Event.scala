@@ -4,6 +4,7 @@ import akkord.DiscordBot.GatewayPayload
 
 object Event {
   trait Event
+
   case class Message(
     id: String,
     channel_id: String,
