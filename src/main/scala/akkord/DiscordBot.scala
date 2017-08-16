@@ -61,6 +61,7 @@ abstract class DiscordBot(token: String) extends Actor
       Some(event) collect botBehavior
       sender ! Ack
   }
+  
   def botBehavior: ReceiveEvent
 }
 
