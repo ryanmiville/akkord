@@ -36,7 +36,7 @@ object Main {
 
 If you wish to create a straight-forward bot that only replies to a message, the `SimpleDiscordBot` class can be extended for a more streamlined API for this simple case. You will describe your bot's behavior by pattern matching on the list of words in the message and returning your bot's reply.
 ```scala
-class SimpleBot(token: String) extends DiscordBot(token) {
+class SimpleBot(token: String) extends SimpleDiscordBot(token) {
   override def onMessage: MessageReply = {
     case "ping" :: Nil => "pong"
     case "greet" :: who => ("Hello" :: who).mkString(" ") + "!"
