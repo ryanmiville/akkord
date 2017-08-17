@@ -3,7 +3,7 @@ package akkord.parser
 import akka.actor.Actor
 import akkord.DiscordBot
 import akkord.DiscordBot._
-import akkord.Event.Message
+import akkord.events.CreateMessage
 import io.circe.Decoder.Result
 import io.circe.HCursor
 
@@ -37,9 +37,9 @@ class EventParser extends Actor {
       isBot || isWebhook
     }
 
-    def parseUserMessageCreated: Result[Message] = {
+    def parseUserMessageCreated: Result[CreateMessage] = {
       import io.circe.generic.auto._
-      d.as[Message]
+      d.as[CreateMessage]
     }
   }
 }

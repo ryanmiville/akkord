@@ -59,7 +59,7 @@ abstract class DiscordBot(token: String) extends Actor
   }
 
   private def botBehaviorWithBackPressure: Receive = {
-    case event: akkord.Event.Event =>
+    case event: events.Event =>
       Some(event) collect botBehavior
       sender ! Ack
   }
@@ -83,7 +83,7 @@ object DiscordBot {
   case class HeartBeat(interval: Int)
   case class NewSeq(s: Int)
 
-  type ReceiveEvent = PartialFunction[akkord.Event.Event, Unit]
+  type ReceiveEvent = PartialFunction[events.Event, Unit]
 
   private val os = System.getProperty("os.name")
 

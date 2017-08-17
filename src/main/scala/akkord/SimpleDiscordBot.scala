@@ -1,7 +1,7 @@
 package akkord
 
-import akkord.Event.Message
 import akkord.api.ChannelApi
+import akkord.events.CreateMessage
 
 abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
   type MessageReply = SimpleDiscordBot.MessageReply
@@ -9,12 +9,12 @@ abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
   private val channel = system.actorOf(ChannelApi.props(token))
 
   override def botBehavior: ReceiveEvent = {
-    case msg: Message =>
+    case msg: CreateMessage =>
       val content      = msg.content.split(" ").toList
       val replyContent = Some(content) collect onMessage
 
       replyContent foreach { rc =>
-        channel ! ChannelApi.Message(msg.channel_id, rc)
+        channel ! ChannelApi.SendMessage(msg.channel_id, rc)
       }
   }
 
