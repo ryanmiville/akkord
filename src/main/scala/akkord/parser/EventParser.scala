@@ -3,7 +3,7 @@ package akkord.parser
 import akka.actor.Actor
 import akkord.DiscordBot
 import akkord.DiscordBot._
-import akkord.events.CreateMessage
+import akkord.events.{Message, MessageCreate, MessageUpdate}
 import io.circe.Decoder.Result
 import io.circe.HCursor
 
@@ -12,7 +12,8 @@ class EventParser extends Actor {
 
   override def receive = {
     case Event("READY", cursor)          => parseReady(cursor)
-    case Event("MESSAGE_CREATE", cursor) => parseMessageCreated(cursor)
+    case Event("MESSAGE_CREATE", cursor) => parseMessageCreate(cursor)
+    case Event("MESSAGE_UPDATE", cursor) => parseMessageUpdate(cursor)
     case Event(_, cursor)                => sender ! DiscordBot.Event(cursor.value)
   }
 
@@ -24,23 +25,20 @@ class EventParser extends Actor {
       .foreach(id => sender ! Ready(id))
   }
 
-  private def parseMessageCreated(cursor: HCursor): Unit = {
-    val d = cursor.downField("d")
-    if(isNonUserMessage)
-      sender ! NonUserMessageCreated
-    else
-      parseUserMessageCreated.foreach(msg => sender ! msg)
+  private def parseMessageCreate(cursor: HCursor): Unit = {
+    parseMessage(cursor).foreach(msg => sender ! MessageCreate(msg))
+  }
 
-    def isNonUserMessage: Boolean = {
-      val isWebhook = cursor.get[String]("webhook_id").toOption.isDefined
-      val isBot     = d.downField("author").get[Boolean]("bot").getOrElse(false)
-      isBot || isWebhook
-    }
+  private def parseMessageUpdate(cursor: HCursor): Unit = {
+    parseMessage(cursor).foreach(msg => sender ! MessageUpdate(msg))
+  }
 
-    def parseUserMessageCreated: Result[CreateMessage] = {
-      import io.circe.generic.auto._
-      d.as[CreateMessage]
-    }
+
+  def parseMessage(cursor: HCursor): Result[Message] = {
+    import io.circe.generic.auto._
+    val msg = cursor.downField("d").as[Message]
+    println(msg)
+    msg
   }
 }
 

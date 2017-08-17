@@ -1,9 +1,8 @@
 package akkord.events
 
-import akkord.DiscordBot.GatewayPayload
 import akkord.api.ChannelApi.SendMessage
 
-case class CreateMessage
+case class Message
 (
   id: String,
   channel_id: String,
@@ -22,7 +21,7 @@ case class CreateMessage
   pinned: Boolean,
   webhook: Option[String],
   `type`: Int
-) extends Event with GatewayPayload {
+) {
   def reply(replyContent: String) = SendMessage(channel_id, replyContent)
 }
 
@@ -31,7 +30,7 @@ case class User
   id: String,
   username: String,
   discriminator: String,
-  avatar: String,
+  avatar: Option[String],
   bot: Option[Boolean],
   mfa_enabled: Option[String],
   verified: Option[Boolean],

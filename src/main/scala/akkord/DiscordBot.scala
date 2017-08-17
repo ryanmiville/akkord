@@ -73,7 +73,6 @@ object DiscordBot {
   case class Event(json: Json)                                        extends GatewayPayload
   case class UnsupportedMessage(text: String)                         extends GatewayPayload
   case class Ready(sessionId: String)                                 extends GatewayPayload
-  case class MessageCreated(channelId: String, content: List[String]) extends GatewayPayload
   case object NonUserMessageCreated                                   extends GatewayPayload
   case object Reconnect                                               extends GatewayPayload
   case object HeartBeatAck                                            extends GatewayPayload
