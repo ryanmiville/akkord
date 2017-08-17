@@ -13,6 +13,8 @@ abstract class DiscordBot(token: String) extends Actor
   with WebsocketConnectionBehavior with FailFastCirceSupport {
   import DiscordBot._
 
+  type ReceiveEvent = DiscordBot.ReceiveEvent
+
   private var lastSeq: Option[Int] = None
   private var sessionId = ""
 
