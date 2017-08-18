@@ -4,6 +4,80 @@ import akkord.DiscordBot.GatewayPayload
 
 sealed trait Event extends GatewayPayload
 
+case class Ready
+(
+  v: Int,
+  user: User,
+  private_channels: List[Channel],
+  guilds: List[UnavailableGuild],
+  session_id: String,
+  _trace: List[String]
+) extends Event
+
+case class Resumed(_trace: List[String]) extends Event
+
+case class ChannelCreate
+(
+  id: String,
+  `type`: String,
+  guild_id: Option[String],
+  position: Option[Int],
+  permission_overwrites: Option[List[Overwrite]],
+  name: Option[String],
+  topic: Option[String],
+  last_message_id: Option[String],
+  bitrate: Option[Int],
+  user_limit: Option[Int],
+  recipients: Option[List[User]],
+  icon: Option[String],
+  owner_id: Option[String],
+  application_id: Option[String]
+) extends Channel with Event
+
+case class ChannelUpdate
+(
+  id: String,
+  `type`: String,
+  guild_id: Option[String],
+  position: Option[Int],
+  permission_overwrites: Option[List[Overwrite]],
+  name: Option[String],
+  topic: Option[String],
+  last_message_id: Option[String],
+  bitrate: Option[Int],
+  user_limit: Option[Int],
+  recipients: Option[List[User]],
+  icon: Option[String],
+  owner_id: Option[String],
+  application_id: Option[String]
+) extends Channel with Event
+
+case class ChannelDelete
+(
+  id: String,
+  `type`: String,
+  guild_id: Option[String],
+  position: Option[Int],
+  permission_overwrites: Option[List[Overwrite]],
+  name: Option[String],
+  topic: Option[String],
+  last_message_id: Option[String],
+  bitrate: Option[Int],
+  user_limit: Option[Int],
+  recipients: Option[List[User]],
+  icon: Option[String],
+  owner_id: Option[String],
+  application_id: Option[String]
+) extends Channel with Event
+
+case class GuildDelete
+(
+  override val id: String,
+  override val unavailable: Boolean
+) extends UnavailableGuild(id, unavailable) with Event
+
+case class ChannelPinsUpdate(channel_id: String, last_pin_timestamp: Option[String]) extends Event
+
 case class MessageCreate
 (
   id: String,

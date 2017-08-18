@@ -3,6 +3,7 @@ package akkord
 import akka.actor.Actor
 import akka.http.scaladsl.model.ws.TextMessage
 import akkord.WebsocketConnectionBehavior._
+import akkord.events.Ready
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 
@@ -31,7 +32,7 @@ abstract class DiscordBot(token: String) extends Actor
     case HeartBeat(interval) => sendHeartBeat(interval)
     case HeartBeatAck        => sender ! Ack
     case Event(json)         => sender ! Ack
-    case Ready(id)           => saveSessionId(id)
+    case r: Ready           => saveSessionId(r.session_id)
     case Reconnect           => attemptReconnect
     case NewSeq(s)           => lastSeq = Some(s)
   }
@@ -72,7 +73,6 @@ object DiscordBot {
   case class Hello(heartbeatInterval: Int)                            extends GatewayPayload
   case class Event(json: Json)                                        extends GatewayPayload
   case class UnsupportedMessage(text: String)                         extends GatewayPayload
-  case class Ready(sessionId: String)                                 extends GatewayPayload
   case object NonUserMessageCreated                                   extends GatewayPayload
   case object Reconnect                                               extends GatewayPayload
   case object HeartBeatAck                                            extends GatewayPayload

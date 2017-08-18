@@ -2,7 +2,6 @@ package akkord.parser
 
 import akka.actor.Actor
 import akkord.DiscordBot
-import akkord.DiscordBot._
 import akkord.events._
 import io.circe.Decoder.Result
 import io.circe.HCursor
@@ -12,7 +11,13 @@ class EventParser extends Actor {
   import io.circe.generic.auto._
 
   override def receive: Receive = {
-    case Event("READY", cursor)                       => parseReady(cursor)
+    case Event("READY", cursor)                       => sendEvent(cursor.downField("d").as[Ready])
+    case Event("RESUMED", cursor)                     => sendEvent(cursor.downField("d").as[Resumed])
+    case Event("CHANNEL_CREATE", cursor)              => sendEvent(cursor.downField("d").as[ChannelCreate])
+    case Event("CHANNEL_UPDATE", cursor)              => sendEvent(cursor.downField("d").as[ChannelUpdate])
+    case Event("CHANNEL_DELETE", cursor)              => sendEvent(cursor.downField("d").as[ChannelDelete])
+    case Event("GUILD_DELETE", cursor)                => sendEvent(cursor.downField("d").as[GuildDelete])
+    case Event("CHANNEL_PINS_UPDATE", cursor)         => sendEvent(cursor.downField("d").as[ChannelPinsUpdate])
     case Event("MESSAGE_CREATE", cursor)              => sendEvent(cursor.downField("d").as[MessageCreate])
     case Event("MESSAGE_UPDATE", cursor)              => sendEvent(cursor.downField("d").as[MessageUpdate])
     case Event("MESSAGE_DELETE", cursor)              => sendEvent(cursor.downField("d").as[MessageDelete])
@@ -21,14 +26,6 @@ class EventParser extends Actor {
     case Event("MESSAGE_REACTION_REMOVE", cursor)     => sendEvent(cursor.downField("d").as[MessageReactionRemove])
     case Event("MESSAGE_REACTION_REMOVE_ALL", cursor) => sendEvent(cursor.downField("d").as[MessageReactionRemoveAll])
     case Event(_, cursor)                             => sender ! DiscordBot.Event(cursor.value)
-  }
-
-  private def parseReady(cursor: HCursor): Unit = {
-    cursor
-      .downField("d")
-      .get[String]("session_id")
-      .toOption
-      .foreach(id => sender ! Ready(id))
   }
 
   def sendEvent(event: Result[akkord.events.Event]): Unit = {

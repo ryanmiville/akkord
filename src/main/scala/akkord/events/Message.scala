@@ -31,7 +31,7 @@ case class User
   discriminator: String,
   avatar: Option[String],
   bot: Option[Boolean],
-  mfa_enabled: Option[String],
+  mfa_enabled: Option[Boolean],
   verified: Option[Boolean],
   email: Option[String]
 )
