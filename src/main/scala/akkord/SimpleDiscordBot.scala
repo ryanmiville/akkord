@@ -9,7 +9,7 @@ abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
   private val channel = system.actorOf(ChannelApi.props(token))
 
   override def botBehavior: ReceiveEvent = {
-    case MessageCreate(msg) =>
+    case msg: MessageCreate =>
       val content      = msg.content.split(" ").toList
       val replyContent = Some(content) collect onMessage
 

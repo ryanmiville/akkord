@@ -2,26 +2,25 @@ package akkord.events
 
 import akkord.api.ChannelApi.SendMessage
 
-case class Message
-(
-  id: String,
-  channel_id: String,
-  author: User,
-  content: String,
-  timestamp: String,
-  edited_timestamp: Option[String],
-  tts: Boolean,
-  mention_everyone: Boolean,
-  mentions: List[User],
-  mention_roles: List[String],
-  attachments: List[Attachment],
-  embeds: List[Embed],
-  reactions: Option[List[Reaction]],
-  nonce: Option[String],
-  pinned: Boolean,
-  webhook: Option[String],
-  `type`: Int
-) {
+trait Message {
+  val id: String
+  val channel_id: String
+  val author: User
+  val content: String
+  val timestamp: String
+  val edited_timestamp: Option[String]
+  val tts: Boolean
+  val mention_everyone: Boolean
+  val mentions: List[User]
+  val mention_roles: List[String]
+  val attachments: List[Attachment]
+  val embeds: List[Embed]
+  val reactions: Option[List[Reaction]]
+  val nonce: Option[String]
+  val pinned: Boolean
+  val webhook: Option[String]
+  val `type`: Int
+
   def reply(replyContent: String) = SendMessage(channel_id, replyContent)
 }
 
@@ -125,7 +124,7 @@ case class Reaction
 
 case class Emoji
 (
-  id: String,
+  id: Option[String],
   name: String,
   roles: Option[List[String]],
   require_colons: Option[Boolean],
