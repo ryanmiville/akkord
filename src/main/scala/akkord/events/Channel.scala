@@ -24,3 +24,21 @@ case class Overwrite
   allow: Int,
   deny: Int
 )
+
+case class ChannelImpl
+(
+  id: String,
+  `type`: String,
+  guild_id: Option[String],
+  position: Option[Int],
+  permission_overwrites: Option[List[Overwrite]],
+  name: Option[String],
+  topic: Option[String],
+  last_message_id: Option[String],
+  bitrate: Option[Int],
+  user_limit: Option[Int],
+  recipients: Option[List[User]],
+  icon: Option[String],
+  owner_id: Option[String],
+  application_id: Option[String]
+) extends Channel

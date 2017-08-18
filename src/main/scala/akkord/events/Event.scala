@@ -8,7 +8,7 @@ case class Ready
 (
   v: Int,
   user: User,
-  private_channels: List[Channel],
+  private_channels: List[ChannelImpl],
   guilds: List[UnavailableGuild],
   session_id: String,
   _trace: List[String]
@@ -72,9 +72,9 @@ case class ChannelDelete
 
 case class GuildDelete
 (
-  override val id: String,
-  override val unavailable: Boolean
-) extends UnavailableGuild(id, unavailable) with Event
+  id: String,
+  unavailable: Boolean
+) extends Event
 
 case class ChannelPinsUpdate(channel_id: String, last_pin_timestamp: Option[String]) extends Event
 
