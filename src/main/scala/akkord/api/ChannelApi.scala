@@ -13,8 +13,8 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case msg @ SendMessage(_, content)    => tellChannelRequestBundle(msg, MessagePayload(content))
-    case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
+    case msg @ SendMessage(_, content) => tellChannelRequestBundle(msg, MessagePayload(content))
+    case bundle: ChannelRequestBundle  => pipeChannelRequest(bundle)
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
