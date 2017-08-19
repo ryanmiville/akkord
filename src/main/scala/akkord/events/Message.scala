@@ -5,13 +5,13 @@ import akkord.api.ChannelApi.SendMessage
 trait Message {
   val id: String
   val channel_id: String
-  val author: User
+  val author: UserImpl
   val content: String
   val timestamp: String
   val edited_timestamp: Option[String]
   val tts: Boolean
   val mention_everyone: Boolean
-  val mentions: List[User]
+  val mentions: List[UserImpl]
   val mention_roles: List[String]
   val attachments: List[Attachment]
   val embeds: List[Embed]
