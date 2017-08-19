@@ -24,18 +24,6 @@ trait Message {
   def reply(replyContent: String) = SendMessage(channel_id, replyContent)
 }
 
-case class User
-(
-  id: String,
-  username: String,
-  discriminator: String,
-  avatar: Option[String],
-  bot: Option[Boolean],
-  mfa_enabled: Option[Boolean],
-  verified: Option[Boolean],
-  email: Option[String]
-)
-
 case class Attachment
 (
   id: String,
@@ -120,13 +108,4 @@ case class Reaction
   count: Int,
   me: Boolean,
   emoji: Emoji
-)
-
-case class Emoji
-(
-  id: Option[String],
-  name: String,
-  roles: Option[List[String]],
-  require_colons: Option[Boolean],
-  managed: Option[Boolean]
 )
