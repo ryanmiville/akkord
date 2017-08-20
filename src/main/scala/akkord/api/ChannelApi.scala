@@ -13,9 +13,10 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case msg: SendMessage              => tellChannelRequestBundle(msg, msg.payload)
-    case mtc: ModifyTextChannel        => tellChannelRequestBundle(mtc, mtc.payload)
-    case mvc: ModifyVoiceChannel       => tellChannelRequestBundle(mvc, mvc.payload)
+    case msg: SendMessage              => tellChannelRequestBundle(msg, Some(msg.payload))
+    case del: DeleteMessage            => tellChannelRequestBundle(del, None)
+    case mtc: ModifyTextChannel        => tellChannelRequestBundle(mtc, Some(mtc.payload))
+    case mvc: ModifyVoiceChannel       => tellChannelRequestBundle(mvc, Some(mvc.payload))
     case bundle: ChannelRequestBundle  => pipeChannelRequest(bundle)
   }
 
@@ -30,7 +31,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
       .pipeTo(self)
   }
 
-  private def tellChannelRequestBundle(req: ChannelReq, payload: ChannelPayload): Unit = {
+  private def tellChannelRequestBundle(req: ChannelReq, payload: Option[ChannelPayload]): Unit = {
     val (method, uri) = getEndpoint(req)
     self ! ChannelRequestBundle(req.channelId, method, uri, payload)
   }
@@ -46,6 +47,7 @@ object ChannelApi {
   case class SendMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
     def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
   }
+  case class DeleteMessage(channelId: String, messageId: String) extends ChannelReq
   case class ModifyTextChannel(channelId: String, payload: ModifyTextChannelPayload) extends ChannelReq
   case class ModifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload) extends ChannelReq
 
@@ -54,7 +56,7 @@ object ChannelApi {
   case class ModifyTextChannelPayload(name: Option[String] = None, position: Option[Int] = None, topic: Option[String] = None) extends ChannelPayload
   case class ModifyVoiceChannelPayload(name: Option[String] = None, position: Option[Int] = None, bitrate: Option[Int] = None, user_limit: Option[Int] = None) extends ChannelPayload
 
-  private case class ChannelRequestBundle(channelId: String, method: HttpMethod, uri: String, payload: ChannelPayload)
+  private case class ChannelRequestBundle(channelId: String, method: HttpMethod, uri: String, payload: Option[ChannelPayload])
 
   def props(token:String)(implicit mat: ActorMaterializer): Props =
     Props(classOf[ChannelApi], token, mat)
@@ -73,6 +75,7 @@ object ChannelApi {
   private def getEndpoint(req: ChannelReq): (HttpMethod, String) = {
     req match {
       case SendMessage(id, _)        => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
+      case DeleteMessage(cId, mId)   => (HttpMethods.DELETE, s"$baseUrl/channels/$cId/messages/$mId")
       case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
     }
