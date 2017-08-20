@@ -15,7 +15,7 @@ trait Channel {
   val icon: Option[String]
   val owner_id: Option[String]
   val application_id: Option[String]
-  val nsfw: Boolean
+  val nsfw: Option[Boolean]
 }
 
 case class Overwrite
@@ -42,5 +42,5 @@ case class ChannelImpl
   override val icon: Option[String],
   override val owner_id: Option[String],
   override val application_id: Option[String],
-  override val nsfw: Boolean
+  override val nsfw: Option[Boolean]
 ) extends Channel

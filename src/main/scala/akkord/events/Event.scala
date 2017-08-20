@@ -34,7 +34,7 @@ object Event {
     override val icon: Option[String],
     override val owner_id: Option[String],
     override val application_id: Option[String],
-    override val nsfw: Boolean
+    override val nsfw: Option[Boolean]
   ) extends Channel with Event
 
   case class ChannelUpdate
@@ -53,7 +53,7 @@ object Event {
     override val icon: Option[String],
     override val owner_id: Option[String],
     override val application_id: Option[String],
-    override val nsfw: Boolean
+    override val nsfw: Option[Boolean]
   ) extends Channel with Event
 
   case class ChannelDelete
@@ -72,7 +72,7 @@ object Event {
     override val icon: Option[String],
     override val owner_id: Option[String],
     override val application_id: Option[String],
-    override val nsfw: Boolean
+    override val nsfw: Option[Boolean]
   ) extends Channel with Event
 
   case class GuildDelete

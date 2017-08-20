@@ -17,6 +17,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
     case del: DeleteMessage            => tellChannelRequestBundle(del, None)
     case mtc: ModifyTextChannel        => tellChannelRequestBundle(mtc, Some(mtc.payload))
     case mvc: ModifyVoiceChannel       => tellChannelRequestBundle(mvc, Some(mvc.payload))
+    case del: DeleteChannel            => tellChannelRequestBundle(del, None)
     case bundle: ChannelRequestBundle  => pipeChannelRequest(bundle)
   }
 
@@ -48,6 +49,7 @@ object ChannelApi {
     def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
   }
   case class DeleteMessage(channelId: String, messageId: String) extends ChannelReq
+  case class DeleteChannel(channelId: String) extends ChannelReq
   case class ModifyTextChannel(channelId: String, payload: ModifyTextChannelPayload) extends ChannelReq
   case class ModifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload) extends ChannelReq
 
@@ -78,6 +80,7 @@ object ChannelApi {
       case DeleteMessage(cId, mId)   => (HttpMethods.DELETE, s"$baseUrl/channels/$cId/messages/$mId")
       case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
+      case DeleteChannel(id)         => (HttpMethods.DELETE, s"$baseUrl/channels/$id")
     }
   }
 }
