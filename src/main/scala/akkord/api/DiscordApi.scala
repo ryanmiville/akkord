@@ -28,6 +28,7 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
   }
 
   private def sendRequest(req: HttpApiRequest): Unit = {
+    println(req)
     getMajorEndpoint(req).map { ep =>
       Http().singleRequest(req.request)
         .map(resp => Response(ep, resp))
@@ -36,6 +37,7 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
   }
 
   private def updateRateLimits(endpoint: String, resp: HttpResponse): Unit = {
+    println(s"status returned: ${resp.status}")
     resp.discardEntityBytes()
     val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
     val reset     = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)

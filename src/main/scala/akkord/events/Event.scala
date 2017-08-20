@@ -174,7 +174,7 @@ object Event {
 
   case class GuildMemberRemove(guild_id: String, user: UserImpl) extends Event
 
-  case class GuildMemberUpdate(guild_id: String, roles: List[Role], user: UserImpl, nick: String) extends Event
+  case class GuildMemberUpdate(guild_id: String, roles: List[String], user: UserImpl, nick: Option[String]) extends Event
 
   case class GuildMembersChunk(guild_id: String, members: List[GuildMemberImpl]) extends Event
 

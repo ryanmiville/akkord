@@ -13,11 +13,14 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case msg @ SendMessage(_, content) => tellChannelRequestBundle(msg, MessagePayload(content))
+    case msg: SendMessage              => tellChannelRequestBundle(msg, msg.payload)
+    case mtc: ModifyTextChannel        => tellChannelRequestBundle(mtc, mtc.payload)
+    case mvc: ModifyVoiceChannel       => tellChannelRequestBundle(mvc, mvc.payload)
     case bundle: ChannelRequestBundle  => pipeChannelRequest(bundle)
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
+    println(bundle)
     Marshal(bundle.payload)
       .to[MessageEntity]
       .map { reqEntity =>
@@ -27,20 +30,29 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
       .pipeTo(self)
   }
 
-  private def tellChannelRequestBundle(msg: SendMessage, payload: ChannelPayload) = {
-    val (method, uri) = getEndpoint(msg)
-    self ! ChannelRequestBundle(msg.channelId, method, uri, payload)
+  private def tellChannelRequestBundle(req: ChannelReq, payload: ChannelPayload): Unit = {
+    val (method, uri) = getEndpoint(req)
+    self ! ChannelRequestBundle(req.channelId, method, uri, payload)
   }
 }
 
 object ChannelApi {
   import DiscordApi._
 
-  trait ChannelRequest
-  case class SendMessage(channelId: String, content: String) extends ChannelRequest
+  sealed trait ChannelReq {
+    val channelId: String
+  }
+
+  case class SendMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
+    def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
+  }
+  case class ModifyTextChannel(channelId: String, payload: ModifyTextChannelPayload) extends ChannelReq
+  case class ModifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload) extends ChannelReq
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
+  case class ModifyTextChannelPayload(name: Option[String] = None, position: Option[Int] = None, topic: Option[String] = None) extends ChannelPayload
+  case class ModifyVoiceChannelPayload(name: Option[String] = None, position: Option[Int] = None, bitrate: Option[Int] = None, user_limit: Option[Int] = None) extends ChannelPayload
 
   private case class ChannelRequestBundle(channelId: String, method: HttpMethod, uri: String, payload: ChannelPayload)
 
@@ -52,16 +64,17 @@ object ChannelApi {
       import io.circe.generic.auto._
       import io.circe.syntax._
       channelEntity match {
-        case entity: ChannelApi.MessagePayload => entity.asJson
+        case entity: MessagePayload            => entity.asJson
+        case entity: ModifyTextChannelPayload  => entity.asJson
+        case entity: ModifyVoiceChannelPayload => entity.asJson
       }
   }
 
-  private def getEndpoint(req: ChannelRequest) = {
+  private def getEndpoint(req: ChannelReq): (HttpMethod, String) = {
     req match {
-      case SendMessage(id, _) => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
+      case SendMessage(id, _)        => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
+      case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
+      case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
     }
   }
-  private def createMessageEndpoint(channelId: String): (HttpMethod, String) =
-    (HttpMethods.POST, s"$baseUrl/channels/$channelId/messages")
-
 }
