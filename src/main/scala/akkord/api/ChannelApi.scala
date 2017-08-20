@@ -22,7 +22,6 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
-    println(bundle)
     Marshal(bundle.payload)
       .to[MessageEntity]
       .map { reqEntity =>

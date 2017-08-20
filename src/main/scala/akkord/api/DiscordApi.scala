@@ -3,11 +3,12 @@ package akkord.api
 import akka.actor.Actor
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.{RawHeader, `User-Agent`}
-import akka.http.scaladsl.model.{HttpHeader, HttpRequest, HttpResponse}
-import akka.pattern.pipe
+import akka.http.scaladsl.model.{HttpHeader, HttpMessage, HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
 
 import scala.collection.{immutable, mutable}
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor {
   import DiscordApi._
@@ -16,29 +17,25 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
   implicit val system       = context.system
 
   protected val reqHeaders = requestHeaders(token)
-  private var rateLimits   = mutable.Map[String, RateLimit]()
+  private val rateLimits = mutable.Map[String, RateLimit]()
 
   override def receive: Receive =
     pipeHttpApiRequest orElse
     sendRequestWithRateLimiting
 
   def sendRequestWithRateLimiting: Receive = {
-    case Response(endpoint, resp) => updateRateLimits(endpoint, resp)
-    case req: HttpApiRequest      => sendRequest(req)
+    case req: HttpApiRequest => sendRequest(req)
   }
 
   private def sendRequest(req: HttpApiRequest): Unit = {
-    println(req)
     getMajorEndpoint(req).map { ep =>
-      Http().singleRequest(req.request)
-        .map(resp => Response(ep, resp))
-        .pipeTo(self)
+      val resp = Await.result(Http().singleRequest(req.request), Duration.Inf)
+      println(s"response code: ${resp.status}")
+      updateRateLimits(ep, resp)
     }
   }
 
-  private def updateRateLimits(endpoint: String, resp: HttpResponse): Unit = {
-    println(s"status returned: ${resp.status}")
-    resp.discardEntityBytes()
+  private def updateRateLimits(endpoint: String, resp: HttpResponse): HttpMessage.DiscardedEntity = {
     val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
     val reset     = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
 
@@ -49,11 +46,12 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
       } yield RateLimit(rem, res)
 
     rateLimit.foreach(r => rateLimits(endpoint) = r)
+    resp.discardEntityBytes()
   }
 
   private def getMajorEndpoint(request: HttpApiRequest): Either[RateLimited, String] = {
     val majorEndpoint = request match {
-      case ChannelRequest(id, req) => s"channel/$id"
+      case ChannelRequest(id, _) => s"channel/$id"
     }
     if (isRateLimited(majorEndpoint))
       Left(RateLimited())
@@ -74,7 +72,6 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
 object DiscordApi {
   trait HttpApiRequest { val request: HttpRequest }
   case class ChannelRequest(channelId: String, request: HttpRequest) extends HttpApiRequest
-  case class Response(majorEndpoint: String, response: HttpResponse)
 
   private case class RateLimit(remaining: Int, reset: Int)
   private case class RateLimited()
