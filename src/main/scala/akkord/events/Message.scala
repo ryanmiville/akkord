@@ -5,13 +5,13 @@ import akkord.api.ChannelApi.SendMessage
 trait Message {
   val id: String
   val channel_id: String
-  val author: User
+  val author: UserImpl
   val content: String
   val timestamp: String
   val edited_timestamp: Option[String]
   val tts: Boolean
   val mention_everyone: Boolean
-  val mentions: List[User]
+  val mentions: List[UserImpl]
   val mention_roles: List[String]
   val attachments: List[Attachment]
   val embeds: List[Embed]
@@ -23,18 +23,6 @@ trait Message {
 
   def reply(replyContent: String) = SendMessage(channel_id, replyContent)
 }
-
-case class User
-(
-  id: String,
-  username: String,
-  discriminator: String,
-  avatar: Option[String],
-  bot: Option[Boolean],
-  mfa_enabled: Option[String],
-  verified: Option[Boolean],
-  email: Option[String]
-)
 
 case class Attachment
 (
@@ -120,13 +108,4 @@ case class Reaction
   count: Int,
   me: Boolean,
   emoji: Emoji
-)
-
-case class Emoji
-(
-  id: Option[String],
-  name: String,
-  roles: Option[List[String]],
-  require_colons: Option[Boolean],
-  managed: Option[Boolean]
 )
