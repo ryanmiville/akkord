@@ -1,7 +1,7 @@
 package akkord
 
 import akkord.api.ChannelApi
-import akkord.events.MessageCreate
+import akkord.events.Event.MessageCreate
 
 abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
   type MessageReply = SimpleDiscordBot.MessageReply

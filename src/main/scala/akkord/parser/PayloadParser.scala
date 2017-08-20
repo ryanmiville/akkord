@@ -38,7 +38,7 @@ class PayloadParser(bot: ActorRef) extends Actor {
     cursor
       .get[String]("t")
       .toOption
-      .foreach(t => eventParser forward EventParser.Event(t, cursor))
+      .foreach(t => eventParser forward EventParser.RawEvent(t, cursor))
   }
 
   private def parseHello(cursor: HCursor): Unit = {
