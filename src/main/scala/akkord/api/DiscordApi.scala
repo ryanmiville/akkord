@@ -28,6 +28,7 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
   }
 
   private def sendRequest(req: HttpApiRequest): Unit = {
+    println(s"received: $req")
     getMajorEndpoint(req).map { ep =>
       val resp = Await.result(Http().singleRequest(req.request), Duration.Inf)
       println(s"response code: ${resp.status}")

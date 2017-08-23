@@ -9,6 +9,8 @@ import akkord.api.DiscordApi.ChannelRequest
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Encoder
 
+import scala.util.Try
+
 class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends DiscordApi(token) with FailFastCirceSupport {
   import ChannelApi._
 
@@ -18,22 +20,29 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
     case mtc: ModifyTextChannel        => tellChannelRequestBundle(mtc, Some(mtc.payload))
     case mvc: ModifyVoiceChannel       => tellChannelRequestBundle(mvc, Some(mvc.payload))
     case del: DeleteChannel            => tellChannelRequestBundle(del, None)
+    case cr: CreateReaction            => tellChannelRequestBundle(cr, None)
     case bundle: ChannelRequestBundle  => pipeChannelRequest(bundle)
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
+    println(s"bundle: $bundle")
     Marshal(bundle.payload)
       .to[MessageEntity]
       .map { reqEntity =>
-        val req = HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity)
-        ChannelRequest(bundle.channelId, req)
+        println("making httpRequest")
+        val req = Try(HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity))
+        println(s"pipe req: $req")
+        ChannelRequest(bundle.channelId, req.get)
       }
       .pipeTo(self)
   }
 
   private def tellChannelRequestBundle(req: ChannelReq, payload: Option[ChannelPayload]): Unit = {
     val (method, uri) = getEndpoint(req)
-    self ! ChannelRequestBundle(req.channelId, method, uri, payload)
+    println(s"req: $req")
+    println(s"uri: $uri")
+
+    self ! ChannelRequestBundle(req.channelId, method, Uri.normalize(uri), payload)
   }
 }
 
@@ -51,6 +60,7 @@ object ChannelApi {
   case class DeleteChannel(channelId: String) extends ChannelReq
   case class ModifyTextChannel(channelId: String, payload: ModifyTextChannelPayload) extends ChannelReq
   case class ModifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload) extends ChannelReq
+  case class CreateReaction(channelId: String, messageId: String, emoji: String) extends ChannelReq
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
@@ -76,10 +86,11 @@ object ChannelApi {
   private def getEndpoint(req: ChannelReq): (HttpMethod, String) = {
     req match {
       case SendMessage(id, _)        => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
-      case DeleteMessage(cId, mId)   => (HttpMethods.DELETE, s"$baseUrl/channels/$cId/messages/$mId")
+      case DeleteMessage(c, m)       => (HttpMethods.DELETE, s"$baseUrl/channels/$c/messages/$m")
       case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case DeleteChannel(id)         => (HttpMethods.DELETE, s"$baseUrl/channels/$id")
+      case CreateReaction(c, m, e)   => (HttpMethods.PUT, s"$baseUrl/channels/$c/messages/$m/reactions/$e/@me")
     }
   }
 }
