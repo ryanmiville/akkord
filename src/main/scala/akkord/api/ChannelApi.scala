@@ -18,6 +18,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
     case msg: CreateMessage           => tellChannelRequestBundle(msg, Some(msg.payload))
     case msg: EditMessage             => tellChannelRequestBundle(msg, Some(msg.payload))
     case del: DeleteMessage           => tellChannelRequestBundle(del, None)
+    case del: BulkDeleteMessages      => tellChannelRequestBundle(del, Some(del.payload))
     case mtc: ModifyTextChannel       => tellChannelRequestBundle(mtc, Some(mtc.payload))
     case mvc: ModifyVoiceChannel      => tellChannelRequestBundle(mvc, Some(mvc.payload))
     case del: DeleteChannel           => tellChannelRequestBundle(del, None)
@@ -67,11 +68,15 @@ object ChannelApi {
   case class EditMessage(channelId: String, messageId: String, payload: MessagePayload) extends ChannelReq {
     def this(channelId: String, messageId: String, content: String) = this(channelId, messageId, MessagePayload(content))
   }
+  case class BulkDeleteMessages(channelId: String, payload: BulkDeleteMessagesPayload) extends ChannelReq {
+    def this(channelId: String, messages: List[String]) = this(channelId, BulkDeleteMessagesPayload(messages))
+  }
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
   case class ModifyTextChannelPayload(name: Option[String] = None, position: Option[Int] = None, topic: Option[String] = None) extends ChannelPayload
   case class ModifyVoiceChannelPayload(name: Option[String] = None, position: Option[Int] = None, bitrate: Option[Int] = None, user_limit: Option[Int] = None) extends ChannelPayload
+  case class BulkDeleteMessagesPayload(messages: List[String])extends ChannelPayload
 
   private case class ChannelRequestBundle(channelId: String, method: HttpMethod, uri: String, payload: Option[ChannelPayload])
 
@@ -86,6 +91,7 @@ object ChannelApi {
         case entity: MessagePayload            => entity.asJson
         case entity: ModifyTextChannelPayload  => entity.asJson
         case entity: ModifyVoiceChannelPayload => entity.asJson
+        case entity: BulkDeleteMessagesPayload => entity.asJson
       }
   }
 
@@ -94,6 +100,7 @@ object ChannelApi {
       case CreateMessage(id, _)      => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
       case DeleteMessage(c, m)       => (HttpMethods.DELETE, s"$baseUrl/channels/$c/messages/$m")
       case EditMessage(c, m, _)      => (HttpMethods.PATCH, s"$baseUrl/channels/$c/messages/$m")
+      case BulkDeleteMessages(id, _) => (HttpMethods.POST, s"$baseUrl/channels/$id/messages/bulk-delete")
       case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case DeleteChannel(id)         => (HttpMethods.DELETE, s"$baseUrl/channels/$id")
