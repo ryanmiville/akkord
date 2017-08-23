@@ -24,6 +24,8 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
     case del: DeleteChannel           => tellChannelRequestBundle(del, None)
     case cr: CreateReaction           => tellChannelRequestBundle(cr, None)
     case del: DeleteAllReactions      => tellChannelRequestBundle(del, None)
+    case pin: AddPinnedChannelMessage => tellChannelRequestBundle(pin, None)
+    case pin: DeletePinnedChannelMessage => tellChannelRequestBundle(pin, None)
     case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
   }
 
@@ -71,6 +73,8 @@ object ChannelApi {
   case class BulkDeleteMessages(channelId: String, payload: BulkDeleteMessagesPayload) extends ChannelReq {
     def this(channelId: String, messages: List[String]) = this(channelId, BulkDeleteMessagesPayload(messages))
   }
+  case class AddPinnedChannelMessage(channelId: String, messageId: String) extends ChannelReq
+  case class DeletePinnedChannelMessage(channelId: String, messageId: String) extends ChannelReq
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
@@ -106,6 +110,8 @@ object ChannelApi {
       case DeleteChannel(id)         => (HttpMethods.DELETE, s"$baseUrl/channels/$id")
       case CreateReaction(c, m, e)   => (HttpMethods.PUT, s"$baseUrl/channels/$c/messages/$m/reactions/$e/@me")
       case DeleteAllReactions(c, m)  => (HttpMethods.DELETE, s"$baseUrl/channels/$c/messages/$m/reactions")
+      case AddPinnedChannelMessage(c, m) => (HttpMethods.PUT, s"$baseUrl/channels/$c/pins/$m")
+      case DeletePinnedChannelMessage(c, m) => (HttpMethods.DELETE, s"$baseUrl/channels/$c/pins/$m")
     }
   }
 }
