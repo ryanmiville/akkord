@@ -15,7 +15,8 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case msg: SendMessage             => tellChannelRequestBundle(msg, Some(msg.payload))
+    case msg: CreateMessage           => tellChannelRequestBundle(msg, Some(msg.payload))
+    case msg: EditMessage             => tellChannelRequestBundle(msg, Some(msg.payload))
     case del: DeleteMessage           => tellChannelRequestBundle(del, None)
     case mtc: ModifyTextChannel       => tellChannelRequestBundle(mtc, Some(mtc.payload))
     case mvc: ModifyVoiceChannel      => tellChannelRequestBundle(mvc, Some(mvc.payload))
@@ -54,7 +55,7 @@ object ChannelApi {
     val channelId: String
   }
 
-  case class SendMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
+  case class CreateMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
     def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
   }
   case class DeleteMessage(channelId: String, messageId: String) extends ChannelReq
@@ -63,6 +64,9 @@ object ChannelApi {
   case class ModifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload) extends ChannelReq
   case class CreateReaction(channelId: String, messageId: String, emoji: String) extends ChannelReq
   case class DeleteAllReactions(channelId: String, messageId: String) extends ChannelReq
+  case class EditMessage(channelId: String, messageId: String, payload: MessagePayload) extends ChannelReq {
+    def this(channelId: String, messageId: String, content: String) = this(channelId, messageId, MessagePayload(content))
+  }
 
   sealed trait ChannelPayload
   case class MessagePayload(content: String) extends ChannelPayload
@@ -87,8 +91,9 @@ object ChannelApi {
 
   private def getEndpoint(req: ChannelReq): (HttpMethod, String) = {
     req match {
-      case SendMessage(id, _)        => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
+      case CreateMessage(id, _)      => (HttpMethods.POST, s"$baseUrl/channels/$id/messages")
       case DeleteMessage(c, m)       => (HttpMethods.DELETE, s"$baseUrl/channels/$c/messages/$m")
+      case EditMessage(c, m, _)      => (HttpMethods.PATCH, s"$baseUrl/channels/$c/messages/$m")
       case ModifyTextChannel(id, _)  => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case ModifyVoiceChannel(id, _) => (HttpMethods.PATCH, s"$baseUrl/channels/$id")
       case DeleteChannel(id)         => (HttpMethods.DELETE, s"$baseUrl/channels/$id")

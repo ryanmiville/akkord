@@ -1,6 +1,6 @@
 package akkord.events
 
-import akkord.api.ChannelApi.SendMessage
+import akkord.api.ChannelApi.CreateMessage
 
 trait Message {
   val id: String
@@ -21,7 +21,7 @@ trait Message {
   val webhook: Option[String]
   val `type`: Int
 
-  def reply(replyContent: String) = new SendMessage(channel_id, replyContent)
+  def reply(replyContent: String) = new CreateMessage(channel_id, replyContent)
 }
 
 case class Attachment

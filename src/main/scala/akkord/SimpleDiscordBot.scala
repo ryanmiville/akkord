@@ -14,7 +14,7 @@ abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
       val replyContent = Some(content) collect onMessage
 
       replyContent foreach { rc =>
-        channel ! new ChannelApi.SendMessage(msg.channel_id, rc)
+        channel ! new ChannelApi.CreateMessage(msg.channel_id, rc)
       }
   }
 
