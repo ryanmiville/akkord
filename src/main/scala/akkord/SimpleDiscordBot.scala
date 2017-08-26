@@ -1,26 +1,19 @@
 package akkord
 
-import akkord.api.ChannelApi
 import akkord.events.Event.MessageCreate
 
 abstract class SimpleDiscordBot(token: String) extends DiscordBot(token) {
-  type MessageReply = SimpleDiscordBot.MessageReply
-
-  private val channel = system.actorOf(ChannelApi.props(token))
+  type ReceiveMessageCreate = SimpleDiscordBot.ReceiveMessageCreate
 
   override def botBehavior: ReceiveEvent = {
     case msg: MessageCreate =>
-      val content      = msg.content.split(" ").toList
-      val replyContent = Some(content) collect onMessage
-
-      replyContent foreach { rc =>
-        channel ! new ChannelApi.CreateMessage(msg.channel_id, rc)
-      }
+      val content = msg.content.split(" ").toList
+      Some(content) collect onMessage(msg)
   }
 
-  def onMessage: MessageReply
+  def onMessage(message: MessageCreate): ReceiveMessageCreate
 }
 
 object SimpleDiscordBot {
-  type MessageReply = PartialFunction[List[String], String]
+  type ReceiveMessageCreate = PartialFunction[List[String], Unit]
 }

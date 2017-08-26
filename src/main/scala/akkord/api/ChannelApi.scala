@@ -15,18 +15,18 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   import ChannelApi._
 
   override def pipeHttpApiRequest: Receive = {
-    case msg: CreateMessage           => tellChannelRequestBundle(msg, Some(msg.payload))
-    case msg: EditMessage             => tellChannelRequestBundle(msg, Some(msg.payload))
-    case del: DeleteMessage           => tellChannelRequestBundle(del, None)
-    case del: BulkDeleteMessages      => tellChannelRequestBundle(del, Some(del.payload))
-    case mtc: ModifyTextChannel       => tellChannelRequestBundle(mtc, Some(mtc.payload))
-    case mvc: ModifyVoiceChannel      => tellChannelRequestBundle(mvc, Some(mvc.payload))
-    case del: DeleteChannel           => tellChannelRequestBundle(del, None)
-    case cr: CreateReaction           => tellChannelRequestBundle(cr, None)
-    case del: DeleteAllReactions      => tellChannelRequestBundle(del, None)
-    case pin: AddPinnedChannelMessage => tellChannelRequestBundle(pin, None)
+    case msg: CreateMessage              => tellChannelRequestBundle(msg, Some(msg.payload))
+    case msg: EditMessage                => tellChannelRequestBundle(msg, Some(msg.payload))
+    case del: DeleteMessage              => tellChannelRequestBundle(del, None)
+    case del: BulkDeleteMessages         => tellChannelRequestBundle(del, Some(del.payload))
+    case mtc: ModifyTextChannel          => tellChannelRequestBundle(mtc, Some(mtc.payload))
+    case mvc: ModifyVoiceChannel         => tellChannelRequestBundle(mvc, Some(mvc.payload))
+    case del: DeleteChannel              => tellChannelRequestBundle(del, None)
+    case cr: CreateReaction              => tellChannelRequestBundle(cr, None)
+    case del: DeleteAllReactions         => tellChannelRequestBundle(del, None)
+    case pin: AddPinnedChannelMessage    => tellChannelRequestBundle(pin, None)
     case pin: DeletePinnedChannelMessage => tellChannelRequestBundle(pin, None)
-    case bundle: ChannelRequestBundle => pipeChannelRequest(bundle)
+    case bundle: ChannelRequestBundle    => pipeChannelRequest(bundle)
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
@@ -39,7 +39,7 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
         println(s"pipe req: $req")
         ChannelRequest(bundle.channelId, req.get)
       }
-      .pipeTo(self)
+      .pipeTo(self)(sender)
   }
 
   private def tellChannelRequestBundle(req: ChannelReq, payload: Option[ChannelPayload]): Unit = {
