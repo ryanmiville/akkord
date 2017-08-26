@@ -33,7 +33,7 @@ object Main {
 }
 ```
 
-If you wish to create a straight-forward bot that only reacts to a message, the `SimpleDiscordBot` class can be extended for a more streamlined API for this simple case. You will describe your bot's behavior by pattern matching on the list of words in the message.
+If you wish to create a straight-forward bot that only reacts to a message, the `SimpleDiscordBot` class can be extended for a more streamlined API for this simple case. You will describe your bot's behavior by pattern matching on the list of words in the message. This can prove useful if your command has multiple parameters.
 ```scala
 class SimpleBot(token: String) extends SimpleDiscordBot(token) {
   val channel = system.actorOf(ChannelApi.props(token))
