@@ -17,11 +17,11 @@ class Bot(token: String) extends DiscordBot(token) {
   val channel = system.actorOf(ChannelApi.props(token))
 
   override def botBehavior: ReceiveEvent = {
-    case msg: Message if msg.content == "ping" =>
-      channel ! ChannelApi.Message(msg.channel_id, "pong")
-    case msg: Message if msg.content.startsWith("greet ") =>
+    case msg: MessageCreate if msg.content == "ping" =>
+      channel ! new CreateMessage(msg.channel_id, "pong")
+    case msg: MessageCreate if msg.content.startsWith("greet ") =>
       val who = msg.content.split(" ", 2)(1)
-      channel ! ChannelApi.Message(msg.channel_id, s"Hello $who!")
+      channel ! new CreateMessage(msg.channel_id, s"Hello $who!")
   }
 }
 
