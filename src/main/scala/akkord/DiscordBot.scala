@@ -70,14 +70,14 @@ abstract class DiscordBot(token: String) extends Actor
 
 object DiscordBot {
   trait GatewayPayload
-  case class Hello(heartbeatInterval: Int)                            extends GatewayPayload
-  case class UnknownEvent(json: Json)                                  extends GatewayPayload
-  case class UnsupportedMessage(text: String)                         extends GatewayPayload
-  case object NonUserMessageCreated                                   extends GatewayPayload
-  case object Reconnect                                               extends GatewayPayload
-  case object HeartBeatAck                                            extends GatewayPayload
-  case object StatusUpdate                                            extends GatewayPayload
-  case object InvalidSession                                          extends GatewayPayload
+  case class Hello(heartbeatInterval: Int)    extends GatewayPayload
+  case class UnknownEvent(json: Json)         extends GatewayPayload
+  case class UnsupportedMessage(text: String) extends GatewayPayload
+  case object NonUserMessageCreated           extends GatewayPayload
+  case object Reconnect                       extends GatewayPayload
+  case object HeartBeatAck                    extends GatewayPayload
+  case object StatusUpdate                    extends GatewayPayload
+  case object InvalidSession                  extends GatewayPayload
 
   case class HeartBeat(interval: Int)
   case class NewSeq(s: Int)
