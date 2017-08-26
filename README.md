@@ -14,7 +14,6 @@ libraryDependencies += "com.github.ryanmiville" %% "akkord" % "0.1"
 Your bot can react to any implementation of the `Event` trait. These classes correspond to the events found [here](https://discordapp.com/developers/docs/topics/gateway#events). If you have experience with Akka, this API should look fairly familiar.
 ```scala
 class Bot(token: String) extends DiscordBot(token) {
-
   val channel = system.actorOf(ChannelApi.props(token))
 
   override def botBehavior: ReceiveEvent = {
@@ -34,12 +33,17 @@ object Main {
 }
 ```
 
-If you wish to create a straight-forward bot that only replies to a message, the `SimpleDiscordBot` class can be extended for a more streamlined API for this simple case. You will describe your bot's behavior by pattern matching on the list of words in the message and returning your bot's reply.
+If you wish to create a straight-forward bot that only reacts to a message, the `SimpleDiscordBot` class can be extended for a more streamlined API for this simple case. You will describe your bot's behavior by pattern matching on the list of words in the message.
 ```scala
 class SimpleBot(token: String) extends SimpleDiscordBot(token) {
-  override def onMessage: MessageReply = {
-    case "ping" :: Nil => "pong"
-    case "greet" :: who => ("Hello" :: who).mkString(" ") + "!"
+  val channel = system.actorOf(ChannelApi.props(token))
+
+  override def onMessage(message: MessageCreate): ReceiveMessageCreate = {
+    case "ping" :: Nil =>
+      channel ! message.reply("pong")
+    case "greet" :: who =>
+      val greeting = ("Hello" :: who).mkString(" ") + "!"
+      channel ! message.reply(greeting)
   }
 }
 
