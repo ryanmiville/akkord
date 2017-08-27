@@ -9,3 +9,4 @@ target
 Bot.scala
 Main.scala
 src/main/resources/application.conf
+project/project/
