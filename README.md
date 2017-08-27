@@ -1,7 +1,7 @@
 # Akkord
 Akkord's goal is to make writing a bot as easy and idiomatic in Scala as possible, while handling all of the necessary connection infrastructure and API rules (rate limiting, etc.) for you.
 
-As the name suggests, Akkord uses Akka heavily to make your bot as non-blocking and concurrent as possible. You can also choose to create your bot as a specialized Akka actor, which can feel like a natural model of a bot for anyone familiar with Akka. If you do not have experience with Akka, or just prefer to not write code in that way, there are straight-forward APIs that hide the underlying actor model.
+As the name suggests, Akkord uses Akka heavily to make your bot as non-blocking and concurrent as possible. You can choose to create your bot as a specialized Akka actor, which can feel like a natural model of a bot for anyone familiar with Akka. If you do not have experience with Akka, or just prefer to not program towards that paradigm, there are straight-forward APIs that hide the underlying actor model.
 
 Akkord is still very much in the early stages of development.
 
