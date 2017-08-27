@@ -1,7 +1,7 @@
 package akkord
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
@@ -10,7 +10,7 @@ import akka.pattern.{ask, pipe}
 import akka.stream._
 import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueueWithComplete}
 import akka.util.Timeout
-import akkord.DiscordBot.GatewayPayload
+import akkord.DiscordBotActor.GatewayPayload
 import akkord.api.DiscordApi.baseUrl
 import akkord.parser.PayloadParser
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait WebsocketConnectionBehavior {
-  this: Actor  with FailFastCirceSupport =>
+  this: Actor  with FailFastCirceSupport with ActorLogging =>
   import WebsocketConnectionBehavior._
 
   var connectionUrl: Option[String] = None
@@ -36,7 +36,7 @@ trait WebsocketConnectionBehavior {
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
   override def preStart(): Unit = {
-    getConnectionUrl()
+    pipeConnectionUrl()
   }
 
   def connected: Receive
@@ -56,11 +56,12 @@ trait WebsocketConnectionBehavior {
 
 
   private def connectionClosed(): Unit = {
+    log.error("Lost websocket connection. Attempting to Reconnect.")
     context become connecting
     self ! LostConnection
   }
 
-  private def getConnectionUrl(): Unit = {
+  private def pipeConnectionUrl(): Unit = {
     Http(system).singleRequest(HttpRequest(uri = s"$baseUrl/gateway"))
       .pipeTo(self)
   }
@@ -69,7 +70,7 @@ trait WebsocketConnectionBehavior {
     system.scheduler.scheduleOnce(30 seconds) {
       connectionUrl match {
         case Some(url) => connect(url)
-        case None      => getConnectionUrl()
+        case None      => pipeConnectionUrl()
       }
     }
   }

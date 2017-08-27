@@ -9,8 +9,6 @@ import akkord.api.DiscordApi.ChannelRequest
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Encoder
 
-import scala.util.Try
-
 class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends DiscordApi(token) with FailFastCirceSupport {
   import ChannelApi._
 
@@ -30,23 +28,17 @@ class ChannelApi(token: String)(implicit mat: ActorMaterializer) extends Discord
   }
 
   private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
-    println(s"bundle: $bundle")
     Marshal(bundle.payload)
       .to[MessageEntity]
       .map { reqEntity =>
-        println("making httpRequest")
-        val req = Try(HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity))
-        println(s"pipe req: $req")
-        ChannelRequest(bundle.channelId, req.get)
+        val req = HttpRequest(bundle.method, bundle.uri, reqHeaders, reqEntity)
+        ChannelRequest(bundle.channelId, req)
       }
       .pipeTo(self)(sender)
   }
 
   private def tellChannelRequestBundle(req: ChannelReq, payload: Option[ChannelPayload]): Unit = {
     val (method, uri) = getEndpoint(req)
-    println(s"req: $req")
-    println(s"uri: $uri")
-
     self ! ChannelRequestBundle(req.channelId, method, Uri.normalize(uri), payload)
   }
 }

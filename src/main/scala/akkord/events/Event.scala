@@ -1,6 +1,6 @@
 package akkord.events
 
-import akkord.DiscordBot.GatewayPayload
+import akkord.DiscordBotActor.GatewayPayload
 
 object Event {
 
@@ -183,7 +183,6 @@ object Event {
   case class GuildRoleUpdate(guild_id: String, role: Role) extends Event
 
   case class GuildRoleDelete(guild_id: String, role_id: String) extends Event
-
 
   case class MessageCreate
   (

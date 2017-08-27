@@ -1,12 +1,11 @@
 package akkord.parser
 
-import akka.actor.Actor
-import akkord.DiscordBot
+import akka.actor.{Actor, ActorLogging}
 import akkord.events.Event._
 import io.circe.Decoder.Result
 import io.circe.HCursor
 
-class EventParser extends Actor {
+class EventParser extends Actor with ActorLogging {
   import EventParser._
   import io.circe.generic.auto._
 
@@ -44,12 +43,16 @@ class EventParser extends Actor {
     case RawEvent("VOICE_STATE_UPDATE", cursor)          => sendEvent(cursor.downField("d").as[VoiceStateUpdate])
     case RawEvent("VOICE_SERVER_UPDATE", cursor)         => sendEvent(cursor.downField("d").as[VoiceServerUpdate])
     case RawEvent("WEBHOOKS_UPDATE", cursor)             => sendEvent(cursor.downField("d").as[WebhooksUpdate])
-    case RawEvent(_, cursor)                             => sender ! DiscordBot.UnknownEvent(cursor.value)
   }
 
   def sendEvent(event: Result[Event]): Unit = {
-    println(event)
-    sender ! event.getOrElse(AkkordParsingError)
+    event match {
+      case Left(e) =>
+        log.error(s"error parsing event: $e")
+        sender ! AkkordParsingError
+      case Right(e) =>
+        sender ! e
+    }
   }
 }
 

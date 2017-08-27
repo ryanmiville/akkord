@@ -1,6 +1,6 @@
 package akkord.api
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorLogging}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.{RawHeader, `User-Agent`}
 import akka.http.scaladsl.model.{HttpHeader, HttpMessage, HttpRequest, HttpResponse}
@@ -10,7 +10,7 @@ import scala.collection.{immutable, mutable}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor {
+abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor with ActorLogging {
   import DiscordApi._
 
   implicit protected val ec = context.system.dispatcher
@@ -28,10 +28,9 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
   }
 
   private def sendRequest(req: HttpApiRequest): Unit = {
-    println(s"received: $req")
     getMajorEndpoint(req).map { ep =>
       val resp = Await.result(Http().singleRequest(req.request), Duration.Inf)
-      println(s"response code: ${resp.status}")
+      log.info(s"response code: ${resp.status}")
       updateRateLimits(ep, resp)
     }
   }
@@ -54,10 +53,12 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
     val majorEndpoint = request match {
       case ChannelRequest(id, _) => s"channel/$id"
     }
-    if (isRateLimited(majorEndpoint))
+    if (isRateLimited(majorEndpoint)) {
+      log.info(s"$majorEndpoint is being rate limited")
       Left(RateLimited())
-    else
+    } else {
       Right(majorEndpoint)
+    }
   }
 
   def isRateLimited(majorEndpoint: String): Boolean = {

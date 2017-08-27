@@ -1,136 +1,116 @@
 package akkord
 
-import akka.actor.Actor
-import akka.http.scaladsl.model.ws.TextMessage
-import akkord.WebsocketConnectionBehavior._
+import akkord.DiscordBot.DoNothing
 import akkord.events.Event._
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.Json
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
+abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
+  type ReceiveMessageContent = DiscordBot.ReceiveMessageContent
 
-abstract class DiscordBot(token: String) extends Actor
-  with WebsocketConnectionBehavior with FailFastCirceSupport {
-  import DiscordBot._
-
-  type ReceiveEvent = DiscordBot.ReceiveEvent
-
-  private var lastSeq: Option[Int] = None
-  private var sessionId = ""
-
-  override def receive: Receive = connecting
-
-  override def connected: Receive =
-    botBehaviorWithBackPressure orElse
-    receiveStreamPlumbing orElse
-    receiveGatewayPayload orElse
-    { case _ => sender ! Ack }
-
-  private def receiveGatewayPayload: Receive = {
-    case Hello(interval)     => scheduleHeartBeat(interval)
-    case HeartBeat(interval) => sendHeartBeat(interval)
-    case HeartBeatAck        => sender ! Ack
-    case UnknownEvent(json)  => sender ! Ack
-    case r: Ready            => saveSessionId(r.session_id)
-    case Reconnect           => attemptReconnect
-    case NewSeq(s)           => lastSeq = Some(s)
+  override def botBehavior: Receive = {
+    case e: ChannelCreate            => onChannelCreate(e)
+    case e: ChannelUpdate            => onChannelUpdate(e)
+    case e: ChannelDelete            => onChannelDelete(e)
+    case e: GuildDelete              => onGuildDelete(e)
+    case e: ChannelPinsUpdate        => onChannelPinsUpdate(e)
+    case e: GuildCreate              => onGuildCreate(e)
+    case e: GuildUpdate              => onGuildUpdate(e)
+    case e: GuildBanAdd              => onGuildBanAdd(e)
+    case e: GuildBanRemove           => onGuildBanRemove(e)
+    case e: GuildEmojisUpdate        => onGuildEmojisUpdate(e)
+    case e: GuildIntegrationsUpdate  => onGuildIntegrationsUpdate(e)
+    case e: GuildMemberAdd           => onGuildMemberAdd(e)
+    case e: GuildMemberRemove        => onGuildMemberRemove(e)
+    case e: GuildMemberUpdate        => onGuildMemberUpdate(e)
+    case e: GuildMembersChunk        => onGuildMemberChunk(e)
+    case e: GuildRoleCreate          => onGuildRoleCreate(e)
+    case e: GuildRoleUpdate          => onGuildRoleUpdate(e)
+    case e: GuildRoleDelete          => onGuildRoleDelete(e)
+    case e: MessageCreate            => onMessageCreate(e)
+    case e: MessageUpdate            => onMessageUpdate(e)
+    case e: MessageDelete            => onMessageDelete(e)
+    case e: MessageDeleteBulk        => onMessageDeleteBulk(e)
+    case e: MessageReactionAdd       => onMessageReactionAdd(e)
+    case e: MessageReactionRemove    => onMessageReactionRemove(e)
+    case e: MessageReactionRemoveAll => onMessageReactionRemoveAll(e)
+    case e: PresenceUpdate           => onPresenceUpdate(e)
+    case e: TypingStart              => onTypingStart(e)
+    case e: UserUpdate               => onUserUpdate(e)
+    case e: VoiceStateUpdate         => onVoiceStateUpdate(e)
+    case e: VoiceServerUpdate        => onVoiceServerUpdate(e)
+    case e: WebhooksUpdate           => onWebhooksUpdate(e)
   }
 
-  private def attemptReconnect: Unit = {
-    queue.offer(resume(token, sessionId, lastSeq))
-    sender ! Ack
+  def onChannelCreate(channelCreate: ChannelCreate): Unit = DoNothing
+
+  def onChannelUpdate(channelUpdate: ChannelUpdate): Unit = DoNothing
+
+  def onChannelDelete(channelDelete: ChannelDelete): Unit = DoNothing
+
+  def onGuildDelete(guildDelete: GuildDelete): Unit = DoNothing
+
+  def onChannelPinsUpdate(channelPinsUpdate: ChannelPinsUpdate): Unit = DoNothing
+
+  def onGuildCreate(guildCreate: GuildCreate): Unit = DoNothing
+
+  def onGuildUpdate(guildUpdate: GuildUpdate): Unit = DoNothing
+
+  def onGuildBanAdd(guildBanAdd: GuildBanAdd): Unit = DoNothing
+
+  def onGuildBanRemove(guildBanRemove: GuildBanRemove): Unit = DoNothing
+
+  def onGuildEmojisUpdate(guildEmojisUpdate: GuildEmojisUpdate): Unit = DoNothing
+
+  def onGuildIntegrationsUpdate(guildIntegrationsUpdate: GuildIntegrationsUpdate): Unit = DoNothing
+
+  def onGuildMemberAdd(guildMemberAdd: GuildMemberAdd): Unit = DoNothing
+
+  def onGuildMemberRemove(guildMemberRemove: GuildMemberRemove): Unit = DoNothing
+
+  def onGuildMemberUpdate(guildMemberUpdate: GuildMemberUpdate): Unit = DoNothing
+
+  def onGuildMemberChunk(guildMembersChunk: GuildMembersChunk): Unit = DoNothing
+
+  def onGuildRoleCreate(guildRoleCreate: GuildRoleCreate): Unit = DoNothing
+
+  def onGuildRoleUpdate(guildRoleUpdate: GuildRoleUpdate): Unit = DoNothing
+
+  def onGuildRoleDelete(guildRoleDelete: GuildRoleDelete): Unit = DoNothing
+
+  def onMessageCreate(message: MessageCreate): Unit = {
+    val content = message.content.split(" ").toList
+    Some(content) collect onMessageContent(message)
   }
 
-  private def saveSessionId(id: String): Unit = {
-    sessionId = id
-    sender ! Ack
+  def onMessageContent(message: MessageCreate): ReceiveMessageContent = {
+    case _ => DoNothing
   }
 
-  private def scheduleHeartBeat(interval: Int): Unit = {
-    queue.offer(identify(token))
-    system.scheduler.scheduleOnce(interval millis, self, HeartBeat(interval))
-    sender ! Ack
-  }
+  def onMessageUpdate(messageUpdate: MessageUpdate): Unit = DoNothing
 
-  private def sendHeartBeat(interval: Int): Unit = {
-    queue.offer(heartbeat(lastSeq))
-    system.scheduler.scheduleOnce(interval millis, self, HeartBeat(interval))
-    sender ! Ack
-  }
+  def onMessageDelete(messageDelete: MessageDelete): Unit = DoNothing
 
-  private def botBehaviorWithBackPressure: Receive = {
-    case event: Event =>
-      Some(event) collect botBehavior
-      sender ! Ack
-  }
+  def onMessageDeleteBulk(messageDeleteBulk: MessageDeleteBulk): Unit = DoNothing
 
-  def botBehavior: ReceiveEvent
+  def onMessageReactionAdd(messageReactionAdd: MessageReactionAdd): Unit = DoNothing
+
+  def onMessageReactionRemove(messageReactionRemove: MessageReactionRemove): Unit = DoNothing
+
+  def onMessageReactionRemoveAll(messageReactionRemoveAll: MessageReactionRemoveAll): Unit = DoNothing
+
+  def onPresenceUpdate(presenceUpdate: PresenceUpdate): Unit = DoNothing
+
+  def onTypingStart(typingStart: TypingStart): Unit = DoNothing
+
+  def onUserUpdate(userUpdate: UserUpdate): Unit = DoNothing
+
+  def onVoiceStateUpdate(voiceStateUpdate: VoiceStateUpdate): Unit = DoNothing
+
+  def onVoiceServerUpdate(voiceServerUpdate: VoiceServerUpdate): Unit = DoNothing
+
+  def onWebhooksUpdate(webhooksUpdate: WebhooksUpdate): Unit = DoNothing
 }
 
 object DiscordBot {
-  trait GatewayPayload
-  case class Hello(heartbeatInterval: Int)    extends GatewayPayload
-  case class UnknownEvent(json: Json)         extends GatewayPayload
-  case class UnsupportedMessage(text: String) extends GatewayPayload
-  case object NonUserMessageCreated           extends GatewayPayload
-  case object Reconnect                       extends GatewayPayload
-  case object HeartBeatAck                    extends GatewayPayload
-  case object StatusUpdate                    extends GatewayPayload
-  case object InvalidSession                  extends GatewayPayload
-
-  case class HeartBeat(interval: Int)
-  case class NewSeq(s: Int)
-
-  type ReceiveEvent = PartialFunction[Event, Unit]
-
-  private val os = System.getProperty("os.name")
-
-  private def identify(token: String) = TextMessage(
-    s"""{
-       |    "op": 2,
-       |    "d": {
-       |        "token": "$token",
-       |        "properties": {
-       |            "$$os": "$os",
-       |            "$$browser": "akkord",
-       |            "$$device": "akkord"
-       |        },
-       |        "compress": false,
-       |        "large_threshold": 50,
-       |        "shard": [
-       |            0,
-       |            1
-       |        ],
-       |        "presence": {
-       |            "game": null,
-       |            "status": "online",
-       |            "since": null,
-       |            "afk": false
-       |        }
-       |    }
-       |}""".stripMargin
-  )
-
-  private def heartbeat(lastSeq: Option[Int]) = TextMessage(
-    s"""
-       |{
-       |    "op": 1,
-       |    "d": ${lastSeq.orNull}
-       |}
-    """.stripMargin
-  )
-
-  private def resume(token: String, sessionId: String, lastSeq: Option[Int]) = TextMessage(
-    s"""
-       |{
-       |    "op": 6,
-       |    "d": {
-       |        "token": "$token",
-       |        "session_id": "$sessionId",
-       |        "seq": ${lastSeq.orNull}
-       |    }
-       |}
-     """.stripMargin
-  )
+  type ReceiveMessageContent = PartialFunction[List[String], Unit]
+  private case object DoNothing
 }
