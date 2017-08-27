@@ -37,8 +37,7 @@ Since reacting to the contents of a message is such a common use case, `DiscordB
       case "ping" :: Nil =>
         channel ! message.reply("pong")
       case "greet" :: who =>
-        val greeting = ("Hello" :: who).mkString(" ") + "!"
-        channel ! message.reply(greeting)
+        channel ! message.reply(s"Hello ${who.mkString(" ")}!)
     }
 ```
 In many cases, extending `DiscordBot` and overriding `onMessageContent` will be all you need for your bot.
