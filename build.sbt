@@ -1,10 +1,10 @@
-name := "akkord"
+name := "akkord-experimental"
 
 version := "0.1"
 
 organization := "com.github.ryanmiville"
 
-licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
+licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
 
 scalaVersion := "2.12.3"
 
