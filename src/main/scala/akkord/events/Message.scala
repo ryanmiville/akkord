@@ -1,6 +1,6 @@
 package akkord.events
 
-import akkord.api.ChannelApi.CreateMessage
+import akkord.api.ChannelApiActor.CreateMessage
 
 trait Message {
   val id: String

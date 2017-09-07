@@ -11,7 +11,7 @@ import akka.stream._
 import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueueWithComplete}
 import akka.util.Timeout
 import akkord.DiscordBotActor.GatewayPayload
-import akkord.api.DiscordApi.baseUrl
+import akkord.api.DiscordApiActor.baseUrl
 import akkord.parser.PayloadParser
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
