@@ -1,7 +1,7 @@
 package akkord
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
@@ -11,10 +11,11 @@ import akka.stream._
 import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueueWithComplete}
 import akka.util.Timeout
 import akkord.DiscordBotActor.GatewayPayload
-import akkord.api.DiscordApi.baseUrl
+import akkord.api.DiscordApiActor.baseUrl
 import akkord.parser.PayloadParser
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -27,11 +28,10 @@ trait WebsocketConnectionBehavior {
   var queue: SourceQueueWithComplete[Message] = _
   var killswitch: UniqueKillSwitch            = _
 
-  val system = context.system
-
-  protected implicit val ec           = system.dispatcher
-  protected implicit val materializer = ActorMaterializer()
-  protected implicit val timeout      = Timeout(10 seconds)
+  protected implicit val system: ActorSystem        = context.system
+  protected implicit val ec: ExecutionContext       = system.dispatcher
+  protected implicit val materializer: Materializer = ActorMaterializer()(context)
+  protected implicit val timeout: Timeout           = Timeout(10 seconds)
 
   private val payloadParser = system.actorOf(Props(classOf[PayloadParser], self))
 
