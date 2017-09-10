@@ -24,6 +24,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test
 )
 
+val playWsStandaloneVersion = "1.0.7"
+
+libraryDependencies += "com.typesafe.play" %% "play-ahc-ws-standalone" % playWsStandaloneVersion
+
 val circeVersion = "0.8.0"
 
 libraryDependencies ++= Seq(
@@ -32,6 +36,10 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser",
   "io.circe" %% "circe-optics"
 ).map(_ % circeVersion)
+
+resolvers += "Bintary JCenter" at "http://jcenter.bintray.com"
+
+libraryDependencies += "play-circe" %% "play-circe" % "2608.3"
 
 resolvers += Resolver.bintrayRepo("hseeberger", "maven")
 
