@@ -4,113 +4,170 @@ import akkord.DiscordBot.DoNothing
 import akkord.events.Event._
 
 abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
-  type ReceiveMessageContent = DiscordBot.ReceiveMessageContent
 
   override def botBehavior: Receive = {
-    case e: ChannelCreate            => onChannelCreate(e)
-    case e: ChannelUpdate            => onChannelUpdate(e)
-    case e: ChannelDelete            => onChannelDelete(e)
-    case e: GuildDelete              => onGuildDelete(e)
-    case e: ChannelPinsUpdate        => onChannelPinsUpdate(e)
-    case e: GuildCreate              => onGuildCreate(e)
-    case e: GuildUpdate              => onGuildUpdate(e)
-    case e: GuildBanAdd              => onGuildBanAdd(e)
-    case e: GuildBanRemove           => onGuildBanRemove(e)
-    case e: GuildEmojisUpdate        => onGuildEmojisUpdate(e)
-    case e: GuildIntegrationsUpdate  => onGuildIntegrationsUpdate(e)
-    case e: GuildMemberAdd           => onGuildMemberAdd(e)
-    case e: GuildMemberRemove        => onGuildMemberRemove(e)
-    case e: GuildMemberUpdate        => onGuildMemberUpdate(e)
-    case e: GuildMembersChunk        => onGuildMemberChunk(e)
-    case e: GuildRoleCreate          => onGuildRoleCreate(e)
-    case e: GuildRoleUpdate          => onGuildRoleUpdate(e)
-    case e: GuildRoleDelete          => onGuildRoleDelete(e)
-    case e: MessageCreate            => onMessageCreate(e)
-    case e: MessageUpdate            => onMessageUpdate(e)
-    case e: MessageDelete            => onMessageDelete(e)
-    case e: MessageDeleteBulk        => onMessageDeleteBulk(e)
-    case e: MessageReactionAdd       => onMessageReactionAdd(e)
-    case e: MessageReactionRemove    => onMessageReactionRemove(e)
-    case e: MessageReactionRemoveAll => onMessageReactionRemoveAll(e)
-    case e: PresenceUpdate           => onPresenceUpdate(e)
-    case e: TypingStart              => onTypingStart(e)
-    case e: UserUpdate               => onUserUpdate(e)
-    case e: VoiceStateUpdate         => onVoiceStateUpdate(e)
-    case e: VoiceServerUpdate        => onVoiceServerUpdate(e)
-    case e: WebhooksUpdate           => onWebhooksUpdate(e)
+    case e: ChannelCreate            => Some(e) collect onChannelCreate
+    case e: ChannelUpdate            => Some(e) collect onChannelUpdate
+    case e: ChannelDelete            => Some(e) collect onChannelDelete
+    case e: GuildDelete              => Some(e) collect onGuildDelete
+    case e: ChannelPinsUpdate        => Some(e) collect onChannelPinsUpdate
+    case e: GuildCreate              => Some(e) collect onGuildCreate
+    case e: GuildUpdate              => Some(e) collect onGuildUpdate
+    case e: GuildBanAdd              => Some(e) collect onGuildBanAdd
+    case e: GuildBanRemove           => Some(e) collect onGuildBanRemove
+    case e: GuildEmojisUpdate        => Some(e) collect onGuildEmojisUpdate
+    case e: GuildIntegrationsUpdate  => Some(e) collect onGuildIntegrationsUpdate
+    case e: GuildMemberAdd           => Some(e) collect onGuildMemberAdd
+    case e: GuildMemberRemove        => Some(e) collect onGuildMemberRemove
+    case e: GuildMemberUpdate        => Some(e) collect onGuildMemberUpdate
+    case e: GuildMembersChunk        => Some(e) collect onGuildMemberChunk
+    case e: GuildRoleCreate          => Some(e) collect onGuildRoleCreate
+    case e: GuildRoleUpdate          => Some(e) collect onGuildRoleUpdate
+    case e: GuildRoleDelete          => Some(e) collect onGuildRoleDelete
+    case e: MessageCreate            => Some(e) collect onMessageCreate
+    case e: MessageUpdate            => Some(e) collect onMessageUpdate
+    case e: MessageDelete            => Some(e) collect onMessageDelete
+    case e: MessageDeleteBulk        => Some(e) collect onMessageDeleteBulk
+    case e: MessageReactionAdd       => Some(e) collect onMessageReactionAdd
+    case e: MessageReactionRemove    => Some(e) collect onMessageReactionRemove
+    case e: MessageReactionRemoveAll => Some(e) collect onMessageReactionRemoveAll
+    case e: PresenceUpdate           => Some(e) collect onPresenceUpdate
+    case e: TypingStart              => Some(e) collect onTypingStart
+    case e: UserUpdate               => Some(e) collect onUserUpdate
+    case e: VoiceStateUpdate         => Some(e) collect onVoiceStateUpdate
+    case e: VoiceServerUpdate        => Some(e) collect onVoiceServerUpdate
+    case e: WebhooksUpdate           => Some(e) collect onWebhooksUpdate
   }
 
-  def onChannelCreate(channelCreate: ChannelCreate): Unit = DoNothing
-
-  def onChannelUpdate(channelUpdate: ChannelUpdate): Unit = DoNothing
-
-  def onChannelDelete(channelDelete: ChannelDelete): Unit = DoNothing
-
-  def onGuildDelete(guildDelete: GuildDelete): Unit = DoNothing
-
-  def onChannelPinsUpdate(channelPinsUpdate: ChannelPinsUpdate): Unit = DoNothing
-
-  def onGuildCreate(guildCreate: GuildCreate): Unit = DoNothing
-
-  def onGuildUpdate(guildUpdate: GuildUpdate): Unit = DoNothing
-
-  def onGuildBanAdd(guildBanAdd: GuildBanAdd): Unit = DoNothing
-
-  def onGuildBanRemove(guildBanRemove: GuildBanRemove): Unit = DoNothing
-
-  def onGuildEmojisUpdate(guildEmojisUpdate: GuildEmojisUpdate): Unit = DoNothing
-
-  def onGuildIntegrationsUpdate(guildIntegrationsUpdate: GuildIntegrationsUpdate): Unit = DoNothing
-
-  def onGuildMemberAdd(guildMemberAdd: GuildMemberAdd): Unit = DoNothing
-
-  def onGuildMemberRemove(guildMemberRemove: GuildMemberRemove): Unit = DoNothing
-
-  def onGuildMemberUpdate(guildMemberUpdate: GuildMemberUpdate): Unit = DoNothing
-
-  def onGuildMemberChunk(guildMembersChunk: GuildMembersChunk): Unit = DoNothing
-
-  def onGuildRoleCreate(guildRoleCreate: GuildRoleCreate): Unit = DoNothing
-
-  def onGuildRoleUpdate(guildRoleUpdate: GuildRoleUpdate): Unit = DoNothing
-
-  def onGuildRoleDelete(guildRoleDelete: GuildRoleDelete): Unit = DoNothing
-
-  def onMessageCreate(message: MessageCreate): Unit = {
-    val content = message.content.split(" ").toList
-    Some(content) collect onMessageContent(message)
-  }
-
-  def onMessageContent(message: MessageCreate): ReceiveMessageContent = {
+  def onChannelCreate: PartialFunction[ChannelCreate, Unit] = {
     case _ => DoNothing
   }
 
-  def onMessageUpdate(messageUpdate: MessageUpdate): Unit = DoNothing
+  def onChannelUpdate: PartialFunction[ChannelUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onMessageDelete(messageDelete: MessageDelete): Unit = DoNothing
+  def onChannelDelete: PartialFunction[ChannelDelete, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onMessageDeleteBulk(messageDeleteBulk: MessageDeleteBulk): Unit = DoNothing
+  def onGuildDelete: PartialFunction[GuildDelete, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onMessageReactionAdd(messageReactionAdd: MessageReactionAdd): Unit = DoNothing
+  def onChannelPinsUpdate: PartialFunction[ChannelPinsUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onMessageReactionRemove(messageReactionRemove: MessageReactionRemove): Unit = DoNothing
+  def onGuildCreate: PartialFunction[GuildCreate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onMessageReactionRemoveAll(messageReactionRemoveAll: MessageReactionRemoveAll): Unit = DoNothing
+  def onGuildUpdate: PartialFunction[GuildUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onPresenceUpdate(presenceUpdate: PresenceUpdate): Unit = DoNothing
+  def onGuildBanAdd: PartialFunction[GuildBanAdd, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onTypingStart(typingStart: TypingStart): Unit = DoNothing
+  def onGuildBanRemove: PartialFunction[GuildBanRemove, Unit] = {
+    case _ => DoNothing
+  }
+  def onGuildEmojisUpdate: PartialFunction[GuildEmojisUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onUserUpdate(userUpdate: UserUpdate): Unit = DoNothing
+  def onGuildIntegrationsUpdate: PartialFunction[GuildIntegrationsUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onVoiceStateUpdate(voiceStateUpdate: VoiceStateUpdate): Unit = DoNothing
+  def onGuildMemberAdd: PartialFunction[GuildMemberAdd, Unit] = {
+    case _ => DoNothing
+  }
+  def onGuildMemberRemove: PartialFunction[GuildMemberRemove, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onVoiceServerUpdate(voiceServerUpdate: VoiceServerUpdate): Unit = DoNothing
+  def onGuildMemberUpdate: PartialFunction[GuildMemberUpdate, Unit] = {
+    case _ => DoNothing
+  }
 
-  def onWebhooksUpdate(webhooksUpdate: WebhooksUpdate): Unit = DoNothing
+  def onGuildMemberChunk: PartialFunction[GuildMembersChunk, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onGuildRoleCreate: PartialFunction[GuildRoleCreate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onGuildRoleUpdate: PartialFunction[GuildRoleUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onGuildRoleDelete: PartialFunction[GuildRoleDelete, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageCreate: PartialFunction[MessageCreate, Unit] = {
+    case message: MessageCreate =>
+      val content = message.content.split(" ").toList
+      Some(content) collect onMessageContent(message)
+  }
+
+  def onMessageContent(message: MessageCreate): PartialFunction[List[String], Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageUpdate: PartialFunction[MessageUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageDelete: PartialFunction[MessageDelete, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageDeleteBulk: PartialFunction[MessageDeleteBulk, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageReactionAdd: PartialFunction[MessageReactionAdd, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageReactionRemove: PartialFunction[MessageReactionRemove, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onMessageReactionRemoveAll: PartialFunction[MessageReactionRemoveAll, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onPresenceUpdate: PartialFunction[PresenceUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onTypingStart: PartialFunction[TypingStart, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onUserUpdate: PartialFunction[UserUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onVoiceStateUpdate: PartialFunction[VoiceStateUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onVoiceServerUpdate: PartialFunction[VoiceServerUpdate, Unit] = {
+    case _ => DoNothing
+  }
+
+  def onWebhooksUpdate: PartialFunction[WebhooksUpdate, Unit] = {
+    case _ => DoNothing
+  }
 }
 
 object DiscordBot {
-  type ReceiveMessageContent = PartialFunction[List[String], Unit]
   private case object DoNothing
 }
