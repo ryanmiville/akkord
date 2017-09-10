@@ -24,7 +24,7 @@ abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
     case e: GuildRoleCreate          => Some(e) collect onGuildRoleCreate
     case e: GuildRoleUpdate          => Some(e) collect onGuildRoleUpdate
     case e: GuildRoleDelete          => Some(e) collect onGuildRoleDelete
-    case e: MessageCreate            => Some(e) collect onMessageCreate
+    case e: MessageCreate            => onMessage(e)
     case e: MessageUpdate            => Some(e) collect onMessageUpdate
     case e: MessageDelete            => Some(e) collect onMessageDelete
     case e: MessageDeleteBulk        => Some(e) collect onMessageDeleteBulk
@@ -110,9 +110,7 @@ abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
   }
 
   def onMessageCreate: PartialFunction[MessageCreate, Unit] = {
-    case message: MessageCreate =>
-      val content = message.content.split(" ").toList
-      Some(content) collect onMessageContent(message)
+    case _ => DoNothing
   }
 
   def onMessageContent(message: MessageCreate): PartialFunction[List[String], Unit] = {
@@ -165,6 +163,13 @@ abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
 
   def onWebhooksUpdate: PartialFunction[WebhooksUpdate, Unit] = {
     case _ => DoNothing
+  }
+
+  private def onMessage(messageCreate: MessageCreate): Option[Unit] = {
+    Some(messageCreate) collect onMessageCreate
+
+    val content = messageCreate.content.split(" ").toList
+    Some(content) collect onMessageContent(messageCreate)
   }
 }
 
