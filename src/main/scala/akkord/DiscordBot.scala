@@ -4,7 +4,6 @@ import akkord.DiscordBot.DoNothing
 import akkord.events.Event._
 
 abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
-  type ReceiveMessageContent = DiscordBot.ReceiveMessageContent
 
   override def botBehavior: Receive = {
     case e: ChannelCreate            => Some(e) collect onChannelCreate
@@ -170,6 +169,5 @@ abstract class DiscordBot(token: String) extends DiscordBotActor(token) {
 }
 
 object DiscordBot {
-  type ReceiveMessageContent = PartialFunction[List[String], Unit]
   private case object DoNothing
 }
