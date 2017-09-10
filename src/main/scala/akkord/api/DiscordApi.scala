@@ -1,52 +1,52 @@
 package akkord.api
 
-import akka.actor.{Actor, ActorLogging}
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.headers.{RawHeader, `User-Agent`}
-import akka.http.scaladsl.model.{HttpHeader, HttpMessage, HttpRequest, HttpResponse}
+import akka.actor.{Actor, ActorLogging, ActorSystem}
 import akka.stream.ActorMaterializer
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
+import play.api.libs.ws.{StandaloneWSRequest, StandaloneWSResponse}
 
-import scala.collection.{immutable, mutable}
-import scala.concurrent.Await
+import scala.collection.mutable
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration.Duration
 
-abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor with ActorLogging {
+abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extends Actor with ActorLogging with CirceBodyReadable {
   import DiscordApi._
 
-  implicit protected val ec = context.system.dispatcher
-  implicit val system       = context.system
+  implicit protected val ec: ExecutionContext = context.system.dispatcher
+  implicit protected val system: ActorSystem  = context.system
 
-  protected val reqHeaders = requestHeaders(token)
+  protected val wsClient: StandaloneAhcWSClient   = StandaloneAhcWSClient()
+  protected val reqHeaders: Seq[(String, String)] = requestHeaders(token)
+
   private val rateLimits = mutable.Map[String, RateLimit]()
 
   override def receive: Receive =
-    pipeHttpApiRequest orElse
+    tellHttpApiRequest orElse
     sendRequestWithRateLimiting
 
   def sendRequestWithRateLimiting: Receive = {
-    case req: HttpApiRequest => sendRequest(req)
+    case req: HttpApiRequest => sender ! sendRequest(req)
   }
 
-  private def sendRequest(req: HttpApiRequest): Unit = {
+  private def sendRequest(req: HttpApiRequest): Either[RateLimited, StandaloneWSResponse] = {
     getMajorEndpoint(req).map { ep =>
-      val resp = Await.result(Http().singleRequest(req.request), Duration.Inf)
+      val resp = Await.result(req.request.execute(), Duration.Inf)
       log.info(s"response code: ${resp.status}")
       updateRateLimits(ep, resp)
     }
   }
 
-  private def updateRateLimits(endpoint: String, resp: HttpResponse): HttpMessage.DiscardedEntity = {
-    val remaining = resp.headers.find(_.name() == remainingHeader).map(_.value().toInt)
-    val reset     = resp.headers.find(_.name() == resetHeader).map(_.value().toInt)
+  private def updateRateLimits(endpoint: String, resp: StandaloneWSResponse): StandaloneWSResponse = {
+    val remaining = resp.header(remainingHeader).map(_.toInt)
+    val reset     = resp.header(resetHeader).map(_.toInt)
 
-    val rateLimit =
-      for {
-        rem <- remaining
-        res <- reset
-      } yield RateLimit(rem, res)
+    val rateLimit = for {
+      rem <- remaining
+      res <- reset
+    } yield RateLimit(rem, res)
 
-    rateLimit.foreach(r => rateLimits(endpoint) = r)
-    resp.discardEntityBytes()
+    rateLimit foreach { r => rateLimits(endpoint) = r }
+    resp
   }
 
   private def getMajorEndpoint(request: HttpApiRequest): Either[RateLimited, String] = {
@@ -68,24 +68,25 @@ abstract class DiscordApi(token: String)(implicit mat: ActorMaterializer) extend
     rateLimit.remaining < 1 && currentTime < rateLimit.reset
   }
 
-  def pipeHttpApiRequest: Receive
+  def tellHttpApiRequest: Receive
 }
 
 object DiscordApi {
-  trait HttpApiRequest { val request: HttpRequest }
-  case class ChannelRequest(channelId: String, request: HttpRequest) extends HttpApiRequest
+  trait HttpApiRequest { val request: StandaloneWSRequest }
+  case class ChannelRequest(channelId: String, request: StandaloneWSRequest) extends HttpApiRequest
 
   private case class RateLimit(remaining: Int, reset: Int)
-  private case class RateLimited()
+  sealed case class RateLimited()
 
-  val remainingHeader = "X-RateLimit-Remaining"
-  val resetHeader     = "X-RateLimit-Reset"
+  protected val remainingHeader = "X-RateLimit-Remaining"
+  protected val resetHeader     = "X-RateLimit-Reset"
 
   val baseUrl = "https://discordapp.com/api/v6"
 
-  def requestHeaders(token: String): immutable.Seq[HttpHeader] = {
-    val authorization = RawHeader("Authorization", s"Bot $token")
-    val userAgent     = `User-Agent`("DiscordBot (https://github.com/ryanmiville/akkord, 0.1)")
-    collection.immutable.Seq(authorization, userAgent)
+  def requestHeaders(token: String): Seq[(String, String)] = {
+    Seq(
+      "Authorization" -> s"Bot $token",
+      "User-Agent" -> "DiscordBot (https://github.com/ryanmiville/akkord, 0.1)"
+    )
   }
 }
