@@ -4,7 +4,8 @@ import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.util.Timeout
-import akkord.api.ChannelApiActor._
+import akkord.api.actors.ChannelApiActor
+import akkord.api.actors.ChannelApiActor._
 import akkord.api.actors.DiscordApiActor.RateLimited
 import akkord.events.Event._
 import io.circe.Json

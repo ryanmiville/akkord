@@ -1,13 +1,12 @@
-package akkord.api
+package akkord.api.actors
 
 import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
+import akkord.api.CirceBodyWritable
 import akkord.api.actors.DiscordApiActor.ChannelRequest
-import akkord.api.actors.DiscordApiActor
 import io.circe.Encoder
 import io.circe.syntax._
-import io.circe.generic.auto._
 
 class ChannelApiActor(token: String)(implicit mat: Materializer) extends DiscordApiActor(token) with CirceBodyWritable {
   import ChannelApiActor._
