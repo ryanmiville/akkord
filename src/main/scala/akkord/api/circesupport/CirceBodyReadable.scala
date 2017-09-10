@@ -1,4 +1,4 @@
-package akkord.api
+package akkord.api.circesupport
 
 import io.circe.Json
 import io.circe.parser._

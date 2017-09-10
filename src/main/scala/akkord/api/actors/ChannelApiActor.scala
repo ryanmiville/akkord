@@ -3,12 +3,14 @@ package akkord.api.actors
 import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
-import akkord.api.CirceBodyWritable
 import akkord.api.actors.DiscordApiActor.ChannelRequest
+import akkord.api.circesupport.CirceBodyWritable
 import io.circe.Encoder
 import io.circe.syntax._
 
-class ChannelApiActor(token: String)(implicit mat: Materializer) extends DiscordApiActor(token) with CirceBodyWritable {
+class ChannelApiActor(token: String)(implicit mat: Materializer)
+  extends DiscordApiActor(token)
+  with CirceBodyWritable {
   import ChannelApiActor._
 
   override def tellHttpApiRequest: Receive = {

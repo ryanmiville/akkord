@@ -1,6 +1,7 @@
 package akkord.api
 
 import akkord.api.actors.DiscordApiActor.{RateLimited, RateLimitedException}
+import akkord.api.circesupport.CirceBodyReadable
 import play.api.libs.ws.StandaloneWSResponse
 
 import scala.concurrent.{ExecutionContext, Future}

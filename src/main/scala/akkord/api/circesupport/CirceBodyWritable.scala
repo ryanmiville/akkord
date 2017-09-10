@@ -1,4 +1,4 @@
-package akkord.api
+package akkord.api.circesupport
 
 import akka.util.ByteString
 import io.circe.Json

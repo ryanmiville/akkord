@@ -2,7 +2,7 @@ package akkord.api.actors
 
 import akka.actor.{Actor, ActorLogging, ActorSystem}
 import akka.stream.Materializer
-import akkord.api.CirceBodyReadable
+import akkord.api.circesupport.CirceBodyReadable
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 import play.api.libs.ws.{StandaloneWSRequest, StandaloneWSResponse}
 
@@ -10,7 +10,10 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 
-abstract class DiscordApiActor(token: String)(implicit mat: Materializer) extends Actor with ActorLogging with CirceBodyReadable {
+abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
+  extends Actor
+  with ActorLogging
+  with CirceBodyReadable {
   import DiscordApiActor._
 
   implicit protected val ec: ExecutionContext = context.system.dispatcher
