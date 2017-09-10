@@ -55,6 +55,6 @@ Both of the above examples will create the following bot:
 ![Screenshot](https://user-images.githubusercontent.com/2359050/28999933-e2e703f6-7a28-11e7-8e92-11445b1ce8f4.png)
 
 # Discord APIs
-Currently, you interact with the Discord APIs via classes that, once again, wrap an underlying actor in order be as non-blocking as possible. Each API resource will have a corresponding class and actor... eventually :)
+Currently, you interact with the Discord APIs via classes that, once again, wrap an underlying actor in order to be as non-blocking as possible. Each API resource will have a corresponding class and actor... eventually :)
 
 Please visit the [developer documentation](https://discordapp.com/developers/docs/intro) to learn what's capable and to get a good idea of what to expect from Akkord.
