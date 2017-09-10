@@ -17,3 +17,7 @@ abstract class DiscordApi(implicit ec: ExecutionContext) extends CirceBodyReadab
       throw RateLimitedException(s"endpoint for channel ID: $channelId is being rate limited")
   }
 }
+
+object DiscordApi {
+  case class EmptyResponse()
+}
