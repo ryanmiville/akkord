@@ -3,7 +3,8 @@ package akkord.api
 import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
-import akkord.api.DiscordApiActor.ChannelRequest
+import akkord.api.actors.DiscordApiActor.ChannelRequest
+import akkord.api.actors.DiscordApiActor
 import io.circe.Encoder
 import io.circe.syntax._
 import io.circe.generic.auto._

@@ -1,7 +1,8 @@
-package akkord.api
+package akkord.api.actors
 
 import akka.actor.{Actor, ActorLogging, ActorSystem}
 import akka.stream.Materializer
+import akkord.api.CirceBodyReadable
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 import play.api.libs.ws.{StandaloneWSRequest, StandaloneWSResponse}
 
