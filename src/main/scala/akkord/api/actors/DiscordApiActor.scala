@@ -35,7 +35,8 @@ abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
   private def sendRequest(req: HttpApiRequest): Either[RateLimited, StandaloneWSResponse] = {
     getMajorEndpoint(req).map { ep =>
       val resp = Await.result(req.request.execute(), Duration.Inf)
-      log.info(s"response code: ${resp.status}")
+      log.info(req.toString)
+      log.info(s"response code: ${resp.status}\nbody: ${resp.body}")
       updateRateLimits(ep, resp)
     }
   }
@@ -55,11 +56,11 @@ abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
 
   private def getMajorEndpoint(request: HttpApiRequest): Either[RateLimited, String] = {
     val majorEndpoint = request match {
-      case ChannelRequest(id, _) => s"channel/$id"
+      case ChannelRequest(id, _) => s"channels/$id"
     }
     if (isRateLimited(majorEndpoint)) {
       log.info(s"$majorEndpoint is being rate limited")
-      Left(RateLimited())
+      Left(RateLimited(majorEndpoint))
     } else {
       Right(majorEndpoint)
     }
@@ -80,7 +81,7 @@ object DiscordApiActor {
   case class ChannelRequest(channelId: String, request: StandaloneWSRequest) extends HttpApiRequest
 
   private case class RateLimit(remaining: Int, reset: Int)
-  sealed case class RateLimited()
+  sealed case class RateLimited(majorEndpoint: String)
 
   case class RateLimitedException(message: String) extends Throwable
 
@@ -92,7 +93,8 @@ object DiscordApiActor {
   def requestHeaders(token: String): Seq[(String, String)] = {
     Seq(
       "Authorization" -> s"Bot $token",
-      "User-Agent" -> "DiscordBot (https://github.com/ryanmiville/akkord, 0.1)"
+      "Content-Type"  -> "application/json",
+      "User-Agent"    -> "DiscordBot (https://github.com/ryanmiville/akkord, 0.1)"
     )
   }
 }

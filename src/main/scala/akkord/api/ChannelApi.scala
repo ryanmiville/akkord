@@ -1,18 +1,15 @@
 package akkord.api
 
-import akka.actor.ActorSystem
-import akka.pattern.ask
+import akka.actor.{ActorRef, ActorSystem}
 import akka.stream.Materializer
 import akka.util.Timeout
 import akkord.api.DiscordApi.EmptyResponse
 import akkord.api.actors.ChannelApiActor
 import akkord.api.actors.ChannelApiActor._
-import akkord.api.actors.DiscordApiActor.RateLimited
 import akkord.events.Event._
-import akkord.events.{Channel, Message}
+import akkord.events.{Channel, ChannelImpl, Message}
 import io.circe.Json
 import io.circe.generic.auto._
-import play.api.libs.ws.StandaloneWSResponse
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -23,11 +20,19 @@ class ChannelApi(
     timeout: Timeout,
     ec: ExecutionContext)
   extends DiscordApi {
-  private val channel = system.actorOf(ChannelApiActor.props(token))
+  override protected val api: ActorRef = system.actorOf(ChannelApiActor.props(token))
+
+  def getChannel(channelId: String): Future[Channel] = {
+    getApiResponse(GetChannel(channelId)) map { resp =>
+      resp.body[Json].as[ChannelImpl] match {
+        case Right(channelImpl)    => channelImpl
+        case Left(decodingFailure) => throw decodingFailure
+      }
+    }
+  }
 
   def createMessage(channelId: String, content: String): Future[Message] = {
-    val response = (channel ? new CreateMessage(channelId, content)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(new CreateMessage(channelId, content)) map { resp =>
       resp.body[Json].as[MessageCreate] match {
         case Right(messageCreate)  => messageCreate
         case Left(decodingFailure) => throw decodingFailure
@@ -36,8 +41,7 @@ class ChannelApi(
   }
 
   def editMessage(channelId: String, messageId: String, content: String): Future[Message] = {
-    val response = (channel ? new EditMessage(channelId, messageId, content)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(new EditMessage(channelId, messageId, content)) map { resp =>
       resp.body[Json].as[MessageCreate] match {
         case Right(messageCreate)  => messageCreate
         case Left(decodingFailure) => throw decodingFailure
@@ -46,73 +50,64 @@ class ChannelApi(
   }
 
   def deleteMessage(channelId: String, messageId: String): Future[EmptyResponse] = {
-    val response = (channel ? DeleteMessage(channelId, messageId)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(DeleteMessage(channelId, messageId)) map { _ =>
       EmptyResponse()
     }
   }
 
-  def bulkDeleteMessages(channelId: String, messageIds: List[String]) = {
-    val response = (channel ? new BulkDeleteMessages(channelId, messageIds)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+  def bulkDeleteMessages(channelId: String, messageIds: List[String]): Future[EmptyResponse] = {
+    getApiResponse(new BulkDeleteMessages(channelId, messageIds)) map { _ =>
       EmptyResponse()
     }
   }
 
   def modifyTextChannel(channelId: String, payload: ModifyTextChannelPayload): Future[Channel] = {
-    val response = (channel ? ModifyTextChannel(channelId, payload)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(ModifyTextChannel(channelId, payload)) map { resp =>
       resp.body[Json].as[ChannelCreate] match {
-        case Right(channelCreate)        => channelCreate
+        case Right(channelCreate)  => channelCreate
         case Left(decodingFailure) => throw decodingFailure
       }
     }
   }
 
   def modifyVoiceChannel(channelId: String, payload: ModifyVoiceChannelPayload): Future[Channel] = {
-    val response = (channel ? ModifyVoiceChannel(channelId, payload)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(ModifyVoiceChannel(channelId, payload)) map { resp =>
       resp.body[Json].as[ChannelCreate] match {
-        case Right(channelCreate)        => channelCreate
+        case Right(channelCreate)  => channelCreate
         case Left(decodingFailure) => throw decodingFailure
       }
     }
   }
 
   def deleteChannel(channelId: String): Future[Channel] = {
-    val response = (channel ? DeleteChannel(channelId)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(DeleteChannel(channelId)) map { resp =>
       resp.body[Json].as[ChannelCreate] match {
-        case Right(channelCreate)        => channelCreate
+        case Right(channelCreate)  => channelCreate
         case Left(decodingFailure) => throw decodingFailure
       }
     }
   }
 
   def createReaction(channelId: String, messageId: String, reaction: String): Future[EmptyResponse] = {
-    val response = (channel ? CreateReaction(channelId, messageId, reaction)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(CreateReaction(channelId, messageId, reaction)) map { _ =>
       EmptyResponse()
     }
   }
 
   def deleteAllReactions(channelId: String, messageId: String): Future[EmptyResponse] = {
-    val response = (channel ? DeleteAllReactions(channelId, messageId)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(DeleteAllReactions(channelId, messageId)) map { _ =>
       EmptyResponse()
     }
   }
 
   def addPinnedChannelMessage(channelId: String, messageId: String): Future[EmptyResponse] = {
-    val response = (channel ? AddPinnedChannelMessage(channelId, messageId)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(AddPinnedChannelMessage(channelId, messageId)) map { _ =>
       EmptyResponse()
     }
   }
 
   def deletePinnedChannelMessage(channelId: String, messageId: String): Future[EmptyResponse] = {
-    val response = (channel ? DeletePinnedChannelMessage(channelId, messageId)).mapTo[Either[RateLimited, StandaloneWSResponse]]
-    unwrapResponse(channelId, response) map { resp =>
+    getApiResponse(DeletePinnedChannelMessage(channelId, messageId)) map { _ =>
       EmptyResponse()
     }
   }
