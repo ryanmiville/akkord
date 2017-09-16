@@ -14,6 +14,7 @@ class ChannelApiActor(token: String)(implicit mat: Materializer)
   import ChannelApiActor._
 
   override def tellHttpApiRequest: Receive = {
+    case c: GetChannel                   => tellChannelRequestBundle(c, None)
     case msg: CreateMessage              => tellChannelRequestBundle(msg, Some(msg.payload))
     case msg: EditMessage                => tellChannelRequestBundle(msg, Some(msg.payload))
     case del: DeleteMessage              => tellChannelRequestBundle(del, None)
@@ -25,10 +26,10 @@ class ChannelApiActor(token: String)(implicit mat: Materializer)
     case del: DeleteAllReactions         => tellChannelRequestBundle(del, None)
     case pin: AddPinnedChannelMessage    => tellChannelRequestBundle(pin, None)
     case pin: DeletePinnedChannelMessage => tellChannelRequestBundle(pin, None)
-    case bundle: ChannelRequestBundle    => pipeChannelRequest(bundle)
+    case bundle: ChannelRequestBundle    => forwardChannelRequest(bundle)
   }
 
-  private def pipeChannelRequest(bundle: ChannelRequestBundle): Unit = {
+  private def forwardChannelRequest(bundle: ChannelRequestBundle): Unit = {
     val req =
       wsClient
         .url(bundle.uri)
@@ -51,6 +52,7 @@ object ChannelApiActor {
     val channelId: String
   }
 
+  case class GetChannel(channelId: String) extends ChannelReq
   case class CreateMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
     def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
   }
@@ -92,19 +94,18 @@ object ChannelApiActor {
       }
   }
 
-  private def getEndpoint(req: ChannelReq): (String, String) = {
-    req match {
-      case CreateMessage(id, _)             => ("POST", s"$baseUrl/channels/$id/messages")
-      case DeleteMessage(c, m)              => ("DELETE", s"$baseUrl/channels/$c/messages/$m")
-      case EditMessage(c, m, _)             => ("PATCH", s"$baseUrl/channels/$c/messages/$m")
-      case BulkDeleteMessages(id, _)        => ("POST", s"$baseUrl/channels/$id/messages/bulk-delete")
-      case ModifyTextChannel(id, _)         => ("PATCH", s"$baseUrl/channels/$id")
-      case ModifyVoiceChannel(id, _)        => ("PATCH", s"$baseUrl/channels/$id")
-      case DeleteChannel(id)                => ("DELETE", s"$baseUrl/channels/$id")
-      case CreateReaction(c, m, e)          => ("PUT", s"$baseUrl/channels/$c/messages/$m/reactions/$e/@me")
-      case DeleteAllReactions(c, m)         => ("DELETE", s"$baseUrl/channels/$c/messages/$m/reactions")
-      case AddPinnedChannelMessage(c, m)    => ("PUT", s"$baseUrl/channels/$c/pins/$m")
-      case DeletePinnedChannelMessage(c, m) => ("DELETE", s"$baseUrl/channels/$c/pins/$m")
-    }
+  private def getEndpoint(req: ChannelReq): (String, String) = req match {
+    case GetChannel(id)                   => ("GET", s"$baseUrl/channels/$id")
+    case CreateMessage(id, _)             => ("POST", s"$baseUrl/channels/$id/messages")
+    case DeleteMessage(c, m)              => ("DELETE", s"$baseUrl/channels/$c/messages/$m")
+    case EditMessage(c, m, _)             => ("PATCH", s"$baseUrl/channels/$c/messages/$m")
+    case BulkDeleteMessages(id, _)        => ("POST", s"$baseUrl/channels/$id/messages/bulk-delete")
+    case ModifyTextChannel(id, _)         => ("PATCH", s"$baseUrl/channels/$id")
+    case ModifyVoiceChannel(id, _)        => ("PATCH", s"$baseUrl/channels/$id")
+    case DeleteChannel(id)                => ("DELETE", s"$baseUrl/channels/$id")
+    case CreateReaction(c, m, e)          => ("PUT", s"$baseUrl/channels/$c/messages/$m/reactions/$e/@me")
+    case DeleteAllReactions(c, m)         => ("DELETE", s"$baseUrl/channels/$c/messages/$m/reactions")
+    case AddPinnedChannelMessage(c, m)    => ("PUT", s"$baseUrl/channels/$c/pins/$m")
+    case DeletePinnedChannelMessage(c, m) => ("DELETE", s"$baseUrl/channels/$c/pins/$m")
   }
 }
