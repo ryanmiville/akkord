@@ -26,6 +26,7 @@ class ChannelApiActor(token: String)(implicit mat: Materializer)
     case del: DeleteChannel              => tellChannelRequestBundle(del, None)
     case cr: CreateReaction              => tellChannelRequestBundle(cr, None)
     case del: DeleteAllReactions         => tellChannelRequestBundle(del, None)
+    case pin: GetPinnedMessages          => tellChannelRequestBundle(pin, None)
     case pin: AddPinnedChannelMessage    => tellChannelRequestBundle(pin, None)
     case pin: DeletePinnedChannelMessage => tellChannelRequestBundle(pin, None)
     case bundle: ChannelRequestBundle    => forwardChannelRequest(bundle)
@@ -72,6 +73,7 @@ object ChannelApiActor {
   case class BulkDeleteMessages(channelId: String, payload: BulkDeleteMessagesPayload) extends ChannelReq {
     def this(channelId: String, messages: List[String]) = this(channelId, BulkDeleteMessagesPayload(messages))
   }
+  case class GetPinnedMessages(channelId: String) extends ChannelReq
   case class AddPinnedChannelMessage(channelId: String, messageId: String) extends ChannelReq
   case class DeletePinnedChannelMessage(channelId: String, messageId: String) extends ChannelReq
 
@@ -111,6 +113,7 @@ object ChannelApiActor {
     case DeleteChannel(id)                => ("DELETE", s"$baseUrl/channels/$id")
     case CreateReaction(c, m, e)          => ("PUT", s"$baseUrl/channels/$c/messages/$m/reactions/$e/@me")
     case DeleteAllReactions(c, m)         => ("DELETE", s"$baseUrl/channels/$c/messages/$m/reactions")
+    case GetPinnedMessages(id)            => ("GET", s"$baseUrl/channels/$id/pins")
     case AddPinnedChannelMessage(c, m)    => ("PUT", s"$baseUrl/channels/$c/pins/$m")
     case DeletePinnedChannelMessage(c, m) => ("DELETE", s"$baseUrl/channels/$c/pins/$m")
   }

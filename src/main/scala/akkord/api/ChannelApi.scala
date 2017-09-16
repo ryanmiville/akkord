@@ -118,6 +118,15 @@ class ChannelApi(
     }
   }
 
+  def getPinnedMessages(channelId: String): Future[Seq[Message]] = {
+    getApiResponse(GetPinnedMessages(channelId)) map { resp =>
+      resp.body[Json].as[List[MessageCreate]] match {
+        case Right(messageCreates)  => messageCreates
+        case Left(decodingFailure) => throw decodingFailure
+      }
+    }
+  }
+
   def addPinnedChannelMessage(channelId: String, messageId: String): Future[EmptyResponse] = {
     getApiResponse(AddPinnedChannelMessage(channelId, messageId)) map { _ =>
       EmptyResponse()
