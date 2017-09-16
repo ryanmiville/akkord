@@ -31,6 +31,24 @@ class ChannelApi(
     }
   }
 
+  def getChannelMessages(channelId: String): Future[Seq[Message]] = {
+    getApiResponse(GetChannelMessages(channelId)) map { resp =>
+      resp.body[Json].as[List[MessageCreate]] match {
+        case Right(messages)       => messages
+        case Left(decodingFailure) => throw decodingFailure
+      }
+    }
+  }
+
+  def getChannelMessage(channelId: String, messageId: String): Future[Message] = {
+    getApiResponse(GetChannelMessage(channelId, messageId)) map { resp =>
+      resp.body[Json].as[MessageCreate] match {
+        case Right(messageCreate)  => messageCreate
+        case Left(decodingFailure) => throw decodingFailure
+      }
+    }
+  }
+
   def createMessage(channelId: String, content: String): Future[Message] = {
     getApiResponse(new CreateMessage(channelId, content)) map { resp =>
       resp.body[Json].as[MessageCreate] match {

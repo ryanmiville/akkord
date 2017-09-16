@@ -15,6 +15,8 @@ class ChannelApiActor(token: String)(implicit mat: Materializer)
 
   override def tellHttpApiRequest: Receive = {
     case c: GetChannel                   => tellChannelRequestBundle(c, None)
+    case gcm: GetChannelMessages         => tellChannelRequestBundle(gcm, None)
+    case gcm: GetChannelMessage          => tellChannelRequestBundle(gcm, None)
     case msg: CreateMessage              => tellChannelRequestBundle(msg, Some(msg.payload))
     case msg: EditMessage                => tellChannelRequestBundle(msg, Some(msg.payload))
     case del: DeleteMessage              => tellChannelRequestBundle(del, None)
@@ -53,6 +55,8 @@ object ChannelApiActor {
   }
 
   case class GetChannel(channelId: String) extends ChannelReq
+  case class GetChannelMessages(channelId: String) extends ChannelReq
+  case class GetChannelMessage(channelId: String, messageId: String) extends ChannelReq
   case class CreateMessage(channelId: String, payload: MessagePayload) extends ChannelReq {
     def this(channelId: String, content: String) = this(channelId, MessagePayload(content))
   }
@@ -96,6 +100,8 @@ object ChannelApiActor {
 
   private def getEndpoint(req: ChannelReq): (String, String) = req match {
     case GetChannel(id)                   => ("GET", s"$baseUrl/channels/$id")
+    case GetChannelMessages(id)           => ("GET", s"$baseUrl/channels/$id/messages")
+    case GetChannelMessage(c, m)          => ("GET", s"$baseUrl/channels/$c/messages/$m")
     case CreateMessage(id, _)             => ("POST", s"$baseUrl/channels/$id/messages")
     case DeleteMessage(c, m)              => ("DELETE", s"$baseUrl/channels/$c/messages/$m")
     case EditMessage(c, m, _)             => ("PATCH", s"$baseUrl/channels/$c/messages/$m")
