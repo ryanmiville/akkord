@@ -8,6 +8,8 @@ import play.api.libs.ws.{StandaloneWSRequest, StandaloneWSResponse}
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.concurrent.{Await, ExecutionContext}
 
 abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
@@ -22,15 +24,14 @@ abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
   protected val wsClient: StandaloneAhcWSClient   = StandaloneAhcWSClient()
   protected val reqHeaders: Seq[(String, String)] = requestHeaders(token)
 
-  private val rateLimits = mutable.Map[String, RateLimit]()
+  private val rateLimits      = mutable.Map[String, RateLimit]()
+  private var globalRateLimit = false
 
   override def receive: Receive =
-    tellHttpApiRequest orElse
-    sendRequestWithRateLimiting
-
-  def sendRequestWithRateLimiting: Receive = {
-    case req: HttpApiRequest => sender ! sendRequest(req)
-  }
+    tellHttpApiRequest orElse {
+      case req: HttpApiRequest  => sender ! sendRequest(req)
+      case ResetGlobalRateLimit => globalRateLimit = false
+    }
 
   private def sendRequest(req: HttpApiRequest): Either[RateLimited, StandaloneWSResponse] = {
     getMajorEndpoint(req).map { ep =>
@@ -42,15 +43,34 @@ abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
   }
 
   private def updateRateLimits(endpoint: String, resp: StandaloneWSResponse): StandaloneWSResponse = {
-    val remaining = resp.header(remainingHeader).map(_.toInt)
-    val reset     = resp.header(resetHeader).map(_.toInt)
+    def updateEndpointRateLimit() = {
+      val remaining = resp.header(remainingHeader).map(_.toInt)
+      val reset     = resp.header(resetHeader).map(_.toInt)
 
-    val rateLimit = for {
-      rem <- remaining
-      res <- reset
-    } yield RateLimit(rem, res)
+      for {
+        rem <- remaining
+        res <- reset
+      } yield {
+        val rateLimit = RateLimit(rem, res)
+        rateLimits(endpoint) = rateLimit
+      }
+    }
 
-    rateLimit foreach { r => rateLimits(endpoint) = r }
+    def updateGlobalRateLimit() = {
+      val global = resp.header(globalHeader).map(_.toBoolean)
+      val retry  = resp.header(retryHeader).map(_.toInt)
+
+      for {
+        g <- global
+        r <- retry
+      } yield {
+        globalRateLimit = g
+        system.scheduler.scheduleOnce(r millis, self, ResetGlobalRateLimit)
+      }
+    }
+
+    updateEndpointRateLimit()
+    updateGlobalRateLimit()
     resp
   }
 
@@ -70,7 +90,7 @@ abstract class DiscordApiActor(token: String)(implicit mat: Materializer)
     val rateLimit   = rateLimits.getOrElse(majorEndpoint, RateLimit(Int.MaxValue, 0))
     val currentTime = System.currentTimeMillis / 1000
 
-    rateLimit.remaining < 1 && currentTime < rateLimit.reset
+    globalRateLimit || (rateLimit.remaining < 1 && currentTime < rateLimit.reset)
   }
 
   def tellHttpApiRequest: Receive
@@ -85,8 +105,12 @@ object DiscordApiActor {
 
   case class RateLimitedException(message: String) extends Throwable
 
+  case object ResetGlobalRateLimit
+
   protected val remainingHeader = "X-RateLimit-Remaining"
   protected val resetHeader     = "X-RateLimit-Reset"
+  protected val globalHeader    = "X-RateLimit-Global"
+  protected val retryHeader     = "Retry-After"
 
   val baseUrl = "https://discordapp.com/api/v6"
 
