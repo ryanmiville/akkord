@@ -21,7 +21,7 @@ abstract class DiscordApi(implicit ec: ExecutionContext, timeout: Timeout) exten
       case Right(resp) =>
         resp
       case Left(rateLimited) =>
-        throw RateLimitedException(s"major endpoing: ${rateLimited.majorEndpoint} is being rate limited")
+        throw RateLimitedException(s"major endpoint: ${rateLimited.majorEndpoint} is being rate limited")
     }
   }
 }

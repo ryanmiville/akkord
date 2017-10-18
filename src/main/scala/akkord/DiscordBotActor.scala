@@ -9,8 +9,10 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-abstract class DiscordBotActor(token: String) extends Actor
-  with WebsocketConnectionBehavior with FailFastCirceSupport
+abstract class DiscordBotActor(token: String)
+  extends Actor
+  with WebsocketConnectionBehavior
+  with FailFastCirceSupport
   with ActorLogging {
   import DiscordBotActor._
 
