@@ -20,7 +20,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait WebsocketConnectionBehavior {
-  this: Actor  with FailFastCirceSupport with ActorLogging =>
+  this: Actor with FailFastCirceSupport with ActorLogging =>
   import WebsocketConnectionBehavior._
 
   var connectionUrl: Option[String] = None
